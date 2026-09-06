@@ -1,0 +1,48 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--background);
+  --color-card-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #fefefe;
+  --color-secondary: #f9f9f9;
+  --color-secondary-foreground: #0f141e;
+  --color-muted: #f9f9f9;
+  --color-muted-foreground: #474156;
+  --color-accent: #f1f1f1;
+  --color-accent-foreground: #0f141e;
+  --color-destructive: #b42318;
+  --color-border: #e1e1e3;
+  --color-input: #e1e1e3;
+  --color-ring: #5684e7;
+  --color-sidebar: #f8f8f8;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --text-heading: clamp(1.375rem, 1.1vw + 1rem, 1.5rem);
+}
+:root { --background: #fefefe; --foreground: #000; --primary: #0f141e; }
+@layer base {
+  * { @apply border-border; }
+  html { scrollbar-gutter: stable; -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-background font-sans text-sm text-foreground antialiased; }
+  input { font-size: 16px; }
+  :focus-visible { outline: none; }
+  @media (hover: hover) and (pointer: fine) {
+    a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; }
+  }
+  @media (hover: none), (pointer: coarse) {
+    :focus-visible { --tw-ring-shadow: 0 0 #0000; --tw-ring-offset-shadow: 0 0 #0000; outline: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+}
+
+/* Touch devices do not receive keyboard focus rings, including programmatic focus. */
+@media (hover: none), (pointer: coarse) {
+  :focus-visible { box-shadow: none; outline: none; }
+}
