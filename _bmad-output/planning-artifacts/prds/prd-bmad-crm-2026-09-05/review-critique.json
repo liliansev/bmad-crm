@@ -1,0 +1,107 @@
+[
+  {
+    "lens": "adversarial",
+    "location": "§3 ; FR-011 ; FR-015",
+    "trigger_condition": "Une opportunité peut exister sans contact, mais son échange exige un contact.",
+    "guard_snippet": "Proposer un échange lié à une opportunité ou un contact, avec au moins un des deux.",
+    "potential_consequence": "Le parcours après appel impose une création supplémentaire."
+  },
+  {
+    "lens": "adversarial",
+    "location": "A06 ; FR-008 ; FR-009",
+    "trigger_condition": "Le contact principal doit appartenir à l'entreprise de l'opportunité.",
+    "guard_snippet": "Proposer des liens indépendants sans blocage en cas de différence.",
+    "potential_consequence": "Un prescripteur externe ou un changement d'employeur devient impossible à représenter simplement."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-010",
+    "trigger_condition": "Les échanges anciens suivent les liens actuels d'un contact changeant d'entreprise.",
+    "guard_snippet": "Arbitrer un rattachement historique d'entreprise conservé sur l'échange.",
+    "potential_consequence": "Le dernier échange d'une entreprise peut concerner une autre entreprise."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-007",
+    "trigger_condition": "Le CA gagné cumule les montants estimés sans période et assimile les absences à zéro.",
+    "guard_snippet": "Proposer Montant des opportunités gagnées — total cumulé, avec décompte des montants non renseignés.",
+    "potential_consequence": "Le total commercial est interprété comme du CA réel."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-012 ; FR-013",
+    "trigger_condition": "Une opportunité clôturée ne peut plus avoir de prochaine action.",
+    "guard_snippet": "Arbitrer le suivi après gain ou perte sans réouverture forcée.",
+    "potential_consequence": "Le suivi commercial fausse le pipeline et ses totaux."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-012",
+    "trigger_condition": "La clôture termine une action qui n'a pas été réalisée.",
+    "guard_snippet": "Distinguer action réalisée et action annulée.",
+    "potential_consequence": "L'historique rapporte une réalisation fictive."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-013",
+    "trigger_condition": "Aucun chemin ne corrige une action inutile ou terminée par erreur.",
+    "guard_snippet": "Proposer annulation et rétablissement avec contrôle de l'action active unique.",
+    "potential_consequence": "Corriger une erreur exige une duplication ou une fausse réalisation."
+  },
+  {
+    "lens": "adversarial",
+    "location": "SM-001 ; UJ-001",
+    "trigger_condition": "Le chronométrage exclut recherche et création des relations.",
+    "guard_snippet": "Expliciter les bornes et mesurer séparément le nouveau prospect.",
+    "potential_consequence": "La recette réussit sans mesurer tout le parcours réel."
+  },
+  {
+    "lens": "adversarial",
+    "location": "§9",
+    "trigger_condition": "Une hypothèse regroupe plusieurs décisions indépendantes.",
+    "guard_snippet": "Séparer en blocs d'arbitrage cohérents avec statut individuel.",
+    "potential_consequence": "Un accord partiel est interprété comme une validation globale."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-017",
+    "trigger_condition": "L'archivage a été ajouté sans besoin confirmé.",
+    "guard_snippet": "Soumettre son inclusion ou report comme arbitrage autonome.",
+    "potential_consequence": "Le périmètre pédagogique prend des états secondaires non nécessaires."
+  },
+  {
+    "lens": "adversarial",
+    "location": "FR-018 ; NFR-005",
+    "trigger_condition": "La destination locale fictive ou hébergée réelle n'est pas fixée.",
+    "guard_snippet": "Arbitrer la destination avant les contraintes d'exploitation.",
+    "potential_consequence": "La formation absorbe un chantier d'exploitation non prévu."
+  },
+  {
+    "lens": "adversarial",
+    "location": "NFR-002 ; FR-018",
+    "trigger_condition": "La redirection sur session expirée ne précise pas le sort de la saisie.",
+    "guard_snippet": "Définir la récupération après connexion ou le traitement de perte.",
+    "potential_consequence": "Les notes disparaissent malgré la promesse de conservation."
+  },
+  {
+    "lens": "edge-case-hunter",
+    "location": "FR-011 ; FR-012 ; FR-017",
+    "trigger_condition": "Une opportunité archivée est rouverte.",
+    "guard_snippet": "À arbitrer : restaurer automatiquement à la réouverture.",
+    "potential_consequence": "Une opportunité ouverte reste archivée."
+  },
+  {
+    "lens": "edge-case-hunter",
+    "location": "FR-013",
+    "trigger_condition": "Une action devient inutile sur une opportunité ouverte.",
+    "guard_snippet": "À arbitrer : annulation avec motif et nouvelle action possible.",
+    "potential_consequence": "Il faut déclarer réalisée une action abandonnée."
+  },
+  {
+    "lens": "edge-case-hunter",
+    "location": "FR-013",
+    "trigger_condition": "Une action est terminée par erreur puis une suivante est créée.",
+    "guard_snippet": "À arbitrer : rétablissement seulement sans action active, sinon remplacement explicite.",
+    "potential_consequence": "Une correction peut casser l'unicité de prochaine action."
+  }
+]

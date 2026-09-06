@@ -1,0 +1,71 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-06-2026 20:43
+last_updated: 09-06-2026 20:43
+project: bmad-crm
+project_key: NOKEY
+tracking_system: file-system
+story_location: 
+  /Users/a1207/CODE/apps/bmad-crm/_bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-initialiser-le-projet-depuis-le-starter-et-ouvrir-mon-espace: backlog
+  1-2-récupérer-mon-accès-par-e-mail: backlog
+  1-3-utiliser-mon-espace-privé-depuis-son-url-hébergée: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-créer-et-retrouver-un-contact-sans-perdre-ma-saisie: backlog
+  2-2-compléter-les-informations-et-notes-de-mon-contact: backlog
+  2-3-relier-mes-contacts-à-leurs-sociétés: backlog
+  2-4-enregistrer-un-échange-et-retrouver-la-dernière-interaction: backlog
+  2-5-corriger-un-échange-sans-déformer-son-historique: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-créer-une-opportunité-et-la-relier-à-mon-contexte: backlog
+  3-2-piloter-le-kanban-et-modifier-mes-cartes-en-place: backlog
+  3-3-programmer-une-action-et-clôturer-une-opportunité-sans-incoh: backlog
+  3-4-terminer-reporter-et-corriger-mes-prochaines-actions: backlog
+  3-5-retrouver-et-traiter-toutes-mes-relances: backlog
+  3-6-voir-jusqu-à-cinq-priorités-à-l-ouverture: backlog
+  3-7-relier-mes-échanges-à-mes-opportunités: backlog
+  3-8-lire-le-montant-gagné-et-le-contexte-complet-d-une-société: backlog
+  epic-3-retrospective: optional
+
+# Réserve d'exécution : voir le rapport avant de commencer la story 1.1.
+planning_readiness:
+  verdict: CONCERNS
+  report: ../planning-artifacts/implementation-readiness.md
+  decisions: ../planning-artifacts/epics-support/decisions-deleguees.md
+  prerequisite: Q7
+  execution_gate: Identifier et vérifier les environnements Supabase/Vercel et paramètres Auth avant toute opération qui les utilise.
+  tracking_only: true

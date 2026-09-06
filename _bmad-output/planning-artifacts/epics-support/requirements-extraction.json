@@ -1,0 +1,127 @@
+{
+  "source": "_bmad-output/planning-artifacts/prds/prd-bmad-crm-2026-09-05/prd.md",
+  "functional": [
+    {
+      "id": "FR-001",
+      "title": "Ajouter et modifier un contact.",
+      "text": "Les valeurs enregistrées sont retrouvées après rechargement. Un e-mail mal formé empêche la sauvegarde et affiche une erreur près du champ sans effacer la saisie. Une adresse déjà utilisée sur un autre contact déclenche un avertissement non bloquant."
+    },
+    {
+      "id": "FR-002",
+      "title": "Accéder à LinkedIn.",
+      "text": "Une URL HTTP(S) renseignée ouvre le profil dans un nouvel onglet. Une URL invalide est refusée ; sans URL, aucune action de profil n'est affichée."
+    },
+    {
+      "id": "FR-003",
+      "title": "Notes de contact.",
+      "text": "Le freelance peut ajouter, modifier ou vider une note libre ; cette opération n'ajoute aucun échange."
+    },
+    {
+      "id": "FR-004",
+      "title": "Dernier échange du contact.",
+      "text": "La fiche affiche le canal et la date/heure de l'échange le plus récent associé à ce contact, ainsi que l'accès à ses notes. Sans échange, elle affiche « Aucun échange enregistré »."
+    },
+    {
+      "id": "FR-005",
+      "title": "Gérer une entreprise.",
+      "text": "Le freelance crée et modifie une entreprise, consulte les contacts et opportunités liés et ouvre leurs fiches. Un nom vide empêche l'enregistrement."
+    },
+    {
+      "id": "FR-006",
+      "title": "Relier les opportunités.",
+      "text": "Une opportunité créée depuis l'entreprise est préliée ; depuis une opportunité, le freelance peut choisir une entreprise existante ou retirer ce lien. La relation apparaît de façon identique sur les deux fiches après sauvegarde. Réalise UJ-003."
+    },
+    {
+      "id": "FR-007",
+      "title": "Montant des opportunités gagnées.",
+      "text": "**Validé :** afficher la somme des montants HT renseignés des opportunités actuellement gagnées liées à l’entreprise, toutes dates confondues, et le nombre d’opportunités gagnées sans montant. Un montant absent est exclu de la somme et signalé, jamais présenté comme un montant zéro renseigné. Un zéro explicitement saisi reste un montant renseigné. Le total et le compteur sont recalculés après modification d’un montant, changement d’étape ou changement d’entreprise. En l’absence de montant renseigné, afficher 0 € avec le compteur de montants manquants s’il est non nul. Libellé : « Montant des opportunités gagnées »."
+    },
+    {
+      "id": "FR-008",
+      "title": "Contact principal.",
+      "text": "Choisir, remplacer ou retirer le contact principal d'une opportunité. Le choix est indépendant de l'entreprise de l'opportunité ; changer l'employeur d'un contact ne force pas à modifier les opportunités dont il est contact principal."
+    },
+    {
+      "id": "FR-009",
+      "title": "Modifier les liaisons.",
+      "text": "Modifier une relation ne supprime ni la fiche liée ni les échanges historiques. Les différences d'entreprise entre contact principal et opportunité ne bloquent pas la modification. Le rattachement historique d'entreprise des échanges est conservé ; sa correction est explicite sur l'échange."
+    },
+    {
+      "id": "FR-010",
+      "title": "Dernier échange sur chaque fiche.",
+      "text": "**Validé :** le contact affiche ses échanges ; l'opportunité affiche ceux explicitement liés à elle ; l'entreprise affiche les échanges dont elle est l'entreprise historique enregistrée. Un changement d'employeur ou d'entreprise de l'opportunité ne déplace pas les anciens échanges. L'entreprise de l'échange est préremplie depuis l'opportunité, sinon depuis le contact, et reste modifiable. `[ASSUMPTION A07 — détails résiduels]` La date la plus récente détermine le dernier échange ; à date identique, le dernier créé est retenu. Sans entreprise préremplissable, le lien reste vide jusqu'à modification explicite."
+    },
+    {
+      "id": "FR-011",
+      "title": "Créer et modifier toute opportunité.",
+      "text": "Le freelance peut modifier chaque champ de toute opportunité, y compris gagnée ou perdue. Titre vide et montant négatif sont refusés sans perte des autres champs. Réalise UJ-001."
+    },
+    {
+      "id": "FR-012",
+      "title": "Parcourir le pipeline.",
+      "text": "Voir les opportunités par étape et changer leur étape depuis leur fiche ; le déplacement par glisser-déposer est validé par l’UX, avec commande équivalente depuis la fiche. Tous les passages entre étapes sont autorisés. Passer à Gagnée ou Perdue demande, si une prochaine action est à faire, de choisir explicitement entre la conserver et l’annuler ; abandonner ce changement conserve l’étape et l’action. Une action annulée par ce choix ne compte pas comme réalisée. Rouvrir ne réactive pas les actions terminées ou annulées et place l'opportunité dans « Opportunités sans prochaine action » si nécessaire."
+    },
+    {
+      "id": "FR-013",
+      "title": "Piloter la prochaine action.",
+      "text": "Créer ou modifier la prochaine action, y compris reporter sa date, puis la marquer terminée. Il ne peut pas exister deux actions à faire sur la même opportunité. Après achèvement, proposer une nouvelle action sans la rendre obligatoire ; l'action terminée reste consultable avec sa date d'achèvement. **Validé :** les opportunités gagnées ou perdues acceptent une prochaine action sans réouverture. Le freelance peut annuler une action inutile ou rétablir une action terminée par erreur ; si une autre action est déjà à faire, le rétablissement n’est pas effectué tant que cette action n’a pas été explicitement terminée ou annulée. Aucune seconde action à faire n’est créée silencieusement. Réalise UJ-001 et UJ-002."
+    },
+    {
+      "id": "FR-014",
+      "title": "Voir les relances.",
+      "text": "L’Accueil après connexion présente au plus cinq tâches d’opportunités ouvertes : échues/du jour par proximité de signature, puis prochaines échéances s’il reste des places. La vue Relances séparée présente, sans filtre actif par défaut, « En retard », « À faire aujourd’hui » et « Opportunités sans prochaine action ». Les tâches Gagnée/Perdue sont exclues des cinq priorités mais restent dans Relances. Toutes les actions des deux premières rubriques sont accessibles, triées par date croissante puis titre, avec compteurs et accès direct à l'opportunité. Les actions futures sont accessibles dans « À venir ». **Validé :** les actions à faire restent visibles quelle que soit l’étape de leur opportunité ; les actions terminées ou annulées sont exclues des relances. La rubrique « Opportunités sans prochaine action » ne contient que les opportunités ouvertes. Un filtre utilisateur éventuel est visible et réinitialisable ; il ne change pas les compteurs globaux. Terminer, annuler, rétablir ou reporter une action actualise la bonne rubrique. Un onglet laissé ouvert recalcule le jour à minuit Paris et lors du retour au premier plan. Réalise UJ-002."
+    },
+    {
+      "id": "FR-015",
+      "title": "Journaliser un échange.",
+      "text": "`[ASSUMPTION A10]` Créer, modifier ou supprimer après confirmation un échange daté, avec canal Téléphone/E-mail/Visio/Autre et notes facultatives. Date/heure courante et contact sont préremplis quand connus ; une date future est refusée. **Validé :** un contact ou une opportunité doit être lié, les deux sont possibles. L'opportunité est préremplie depuis sa fiche. Le contact de l'échange peut différer du contact principal ; cela ne modifie pas ce dernier. L'entreprise historique suit FR-010. Sauvegarder actualise FR-004 et FR-010. Supprimer ou antidater l'échange le plus récent fait réapparaître le précédent, ou l'état vide. Réalise UJ-001."
+    },
+    {
+      "id": "FR-016",
+      "title": "Retrouver une fiche.",
+      "text": "Rechercher les contacts par nom ou e-mail, les entreprises par nom et les opportunités par titre, sans distinction de casse. Aucune correspondance affiche un état vide avec possibilité de créer."
+    },
+    {
+      "id": "FR-017",
+      "title": "Hors V1 : archivage et restauration de fiches.",
+      "text": "Exigence retirée du périmètre sur décision de Lilian ; identifiant conservé pour la traçabilité, sans comportement à implémenter."
+    },
+    {
+      "id": "FR-018",
+      "title": "Accès privé avec e-mail et mot de passe.",
+      "text": "**Validé :** la version hébergée est réservée à un compte propriétaire unique créé à l’installation, sans inscription publique ni invitation. Le propriétaire se connecte avec son adresse e-mail et son mot de passe ; il peut réinitialiser son mot de passe par e-mail en cas d’oubli. Sans session authentifiée, les données et leurs opérations sont inaccessibles. Si la session expire pendant une saisie, le contenu est récupéré après reconnexion au compte propriétaire sans ressaisie et sans prétendre qu’il a déjà été enregistré. Une sauvegarde en échec conserve la saisie et affiche une erreur claire. `[ASSUMPTION A11 — détail restant]` La déconnexion explicite reste proposée ; les modalités techniques de session et de réinitialisation appartiennent à l’architecture."
+    }
+  ],
+  "nonfunctional": [
+    {
+      "id": "NFR-001",
+      "title": "Réactivité.",
+      "text": "Sur un jeu fictif de 100 contacts, 50 entreprises, 200 opportunités et 1 000 échanges, les vues principales deviennent utilisables en moins de 2 s et une sauvegarde reçoit confirmation en moins de 1 s dans au moins 19 essais sur 20, sur la configuration de recette documentée. L'ouverture d'une fiche et la soumission affichent une réaction visuelle en moins de 100 ms."
+    },
+    {
+      "id": "NFR-002",
+      "title": "Persistance et échecs.",
+      "text": "Une sauvegarde confirmée résiste au rechargement et à la reconnexion. **Validé :** une erreur conserve la saisie, signale l’échec et permet de réessayer ; aucun succès trompeur. Après expiration de session, la saisie est récupérable après reconnexion conformément à FR-018 ; cela ne vaut pas confirmation d’enregistrement. Une soumission répétée pendant l'attente ne crée pas de doublon. **Validé en architecture :** avertir avant de remplacer un même champ modifié entre-temps dans un autre onglet, conserver la saisie et permettre un choix explicite. Aucun écrasement silencieux ; pas de collaboration temps réel attendue."
+    },
+    {
+      "id": "NFR-003",
+      "title": "Usage web.",
+      "text": "Recette à 1440 × 900 et 402 × 874, sans défilement horizontal de la page ; un pipeline peut défiler dans sa propre zone. Champs nommés, erreurs associées, parcours clavier, focus perceptible et fermeture des dialogues par Échap. Une action essentielle ne dépend jamais du glisser-déposer ou du survol."
+    },
+    {
+      "id": "NFR-004",
+      "title": "Confidentialité.",
+      "text": "Vérifier l'accès propriétaire pour toute lecture/écriture de données, y compris accès direct. Connexion chiffrée dès qu'hébergée hors de la machine locale, secrets absents du client, aucune note ni coordonnée complète dans les journaux techniques. Utiliser exclusivement des données fictives pour les démonstrations enregistrées."
+    },
+    {
+      "id": "NFR-005",
+      "title": "Retirée du POC : sauvegarde de secours planifiée.",
+      "text": "Le 6 septembre 2026, Lilian retire la sauvegarde quotidienne conservée sept jours pour le POC Supabase + Vercel. Le bloc associé de perte maximale de 24 heures et de restauration en moins d’une journée n’est plus un critère de recette du POC. Aucun mécanisme de sauvegarde de secours ni abonnement correspondant à prévoir. La persistance des enregistrements et la conservation de saisie de NFR-002 restent applicables."
+    },
+    {
+      "id": "NFR-006",
+      "title": "Évolution.",
+      "text": "La V1 fonctionne sans intégration commerciale externe ; l’envoi d’e-mails de récupération d’accès est inclus. L'architecture doit expliquer comment une future importation d'échanges réutilisera les mêmes règles de rattachement et de dernier échange, sans imposer de ressaisie des contacts et opportunités existants. Aucun connecteur ni API publique à construire maintenant."
+    }
+  ]
+}

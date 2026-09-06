@@ -1,0 +1,14 @@
+# Secrets locaux
+.env*
+!.env.example
+.local/
+# Sorties et dépendances
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.vercel/
+.DS_Store
+# Génération BMAD et vérifications locales
+_bmad/render/
+_bmad-output/implementation-artifacts/verification/
