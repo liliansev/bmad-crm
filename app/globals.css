@@ -34,7 +34,7 @@
   input { font-size: 16px; }
   :focus-visible { outline: none; }
   @media (hover: hover) and (pointer: fine) {
-    a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; }
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; }
   }
   @media (hover: none), (pointer: coarse) {
     :focus-visible { --tw-ring-shadow: 0 0 #0000; --tw-ring-offset-shadow: 0 0 #0000; outline: none; }

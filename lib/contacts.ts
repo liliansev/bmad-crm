@@ -2,10 +2,15 @@ import "server-only";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
-import { contactSchema, type ContactReadResult, type ContactsPage } from "@/lib/validations/contacts";
+import { contactSchema, contactSummarySchema, detailsVersionsSchema, duplicatesResultSchema, type DuplicatesResult, type ContactReadResult, type ContactsPage } from "@/lib/validations/contacts";
 
 export const CONTACT_PAGE_SIZE = 25;
-const columns = "id,first_name,last_name,field_versions,revision,created_at,updated_at";
+const columns = "id,first_name,last_name,email,job_title,linkedin_url,field_versions,details_versions,revision,created_at,updated_at";
+function projectContact(value: unknown) {
+  const parsed = z.object({ field_versions: z.record(z.string(), z.unknown()), details_versions: detailsVersionsSchema }).passthrough().parse(value);
+  const { details_versions, ...rest } = parsed;
+  return { ...rest, field_versions: { ...parsed.field_versions, ...details_versions } };
+}
 
 export async function contactsClient() {
   const client = await createClient({ writable: true });
@@ -22,7 +27,7 @@ export async function readContacts(page: number): Promise<ContactsPage> {
     if (auth.status !== "success") return auth;
     const { data, error, count } = await auth.client.from("contacts").select(columns, { count: "exact" }).order("last_name").order("first_name").order("id").range((page - 1) * CONTACT_PAGE_SIZE, page * CONTACT_PAGE_SIZE - 1);
     if (error || count === null) return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." };
-    return { status: "success", contacts: z.array(contactSchema).parse(data), total: count, page };
+    return { status: "success", contacts: z.array(z.unknown()).parse(data).map(value => contactSummarySchema.parse(projectContact(value))), total: count, page };
   } catch { return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." }; }
 }
 
@@ -30,9 +35,19 @@ export async function readContact(id: string): Promise<ContactReadResult> {
   try {
     const auth = await contactsClient();
     if (auth.status !== "success") return auth;
-    const { data, error } = await auth.client.from("contacts").select(columns).eq("id", id).maybeSingle();
+    const { data, error } = await auth.client.from("contacts").select(`${columns},notes`).eq("id", id).maybeSingle();
     if (error) return { status: "unavailable", message: "Impossible de charger la fiche. Votre brouillon est conservé." };
     if (!data) return { status: "not_found", message: "Cette fiche n’existe pas ou n’est pas accessible." };
-    return { status: "success", contact: contactSchema.parse(data) };
+    return { status: "success", contact: contactSchema.parse(projectContact(data)) };
   } catch { return { status: "unavailable", message: "Impossible de charger la fiche. Réessayez." }; }
+}
+
+export async function readEmailDuplicates(email: string, excludeId: string | null, page: number): Promise<DuplicatesResult> {
+  try {
+    const auth = await contactsClient();
+    if (auth.status !== "success") return auth;
+    const { data, error } = await auth.client.rpc("contact_email_duplicates", { p_email: email, p_exclude_id: excludeId, p_page: page });
+    if (error) return { status: "unavailable", message: "La vérification des doublons est indisponible. Vous pouvez enregistrer." };
+    return duplicatesResultSchema.parse(data);
+  } catch { return { status: "unavailable", message: "La vérification des doublons est indisponible. Vous pouvez enregistrer." }; }
 }

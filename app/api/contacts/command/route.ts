@@ -8,8 +8,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "forbidden", message: "Origine de requête refusée." }, { status: 403, headers });
   }
   try {
-    const body = await request.text();
-    if (body.length > 4096) return NextResponse.json({ status: "validation", message: "Commande trop longue." }, { status: 400, headers });
+    const reader = request.body?.getReader();
+    if (!reader) throw new Error("Empty body");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 128 * 1024) {
+        await reader.cancel();
+        return NextResponse.json({ status: "validation", message: "Commande trop longue." }, { status: 400, headers });
+      }
+      chunks.push(value);
+    }
+    const body = Buffer.concat(chunks).toString("utf8");
     return NextResponse.json(await saveContactAction(JSON.parse(body)), { headers });
   } catch { return NextResponse.json({ status: "validation", message: "Commande non valide." }, { status: 400, headers }); }
 }

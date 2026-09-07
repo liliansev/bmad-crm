@@ -1,6 +1,6 @@
 # CRM BMAD
 
-CRM interne privé, en français. Connexion e-mail/mot de passe, récupération d’accès et Accueil réservé à un propriétaire unique. Aucune inscription publique ni commande de déconnexion n’est exposée. Contacts permet de créer une personne avec son prénom ou son nom, puis de modifier sa fiche dans un panneau droit.
+CRM interne privé, en français. Connexion e-mail/mot de passe, récupération d’accès et Accueil réservé à un propriétaire unique. Aucune inscription publique ni commande de déconnexion n’est exposée. Contacts permet de créer une personne avec son prénom ou son nom, puis de compléter sa fiche dans un panneau droit.
 
 ## Démarrage local
 
@@ -78,12 +78,20 @@ Le script contrôle le domaine Supabase, le type recovery et la redirection exac
 L’option existante `--generated-link` utilise des fichiers distincts (`recovery-generated-link.json` en local, `recovery-hosted-generated-link.json` en HTTPS) et marque les résultats comme contrôle administrateur ; elle ne remplace jamais la preuve de réception. Les essais sur formats Chromium ne prouvent pas le comportement de Safari sur un appareil physique.
 
 
-## Contacts (story 2.1)
+## Contacts (stories 2.1 et 2.2)
 
-Ouvrir **Contacts → Ajouter un contact**, saisir un prénom ou un nom puis **Ajouter**. Une confirmation indique le commit ; rouvrir une ligne permet de corriger ses deux champs et d’enregistrer. Aucun e-mail, société ou autre champ n’est encore livré.
+Ouvrir **Contacts → Ajouter un contact**, saisir un prénom ou un nom puis **Ajouter**. Une confirmation indique l’enregistrement ; rouvrir une ligne permet de corriger sa fiche. La story 2.2 ajoute localement quatre champs facultatifs : e-mail, titre professionnel, lien LinkedIn HTTP(S) et notes multiligne. Chacun peut être effacé. Les doublons d’e-mail sont signalés sans bloquer l’enregistrement ; la liste affiche les cinq colonnes approuvées, les notes restent dans la fiche.
 
 En cas de coupure, garder l’onglet ouvert et réessayer la confirmation. La commande originale est reprise sans doublon ; une saisie plus récente reste à enregistrer. Après reconnexion du même propriétaire, la reprise du brouillon est proposée. Les conflits sont résolus explicitement par champ.
 
 Le schéma versionné est sous `supabase/migrations/`. La migration initiale et le registre privé du propriétaire sont appliqués par administration au projet dédié ; les détails de réalisation et preuves sont dans [setup-2-1.md](_bmad-output/implementation-artifacts/setup-2-1.md). Ne pas rejouer une migration déjà appliquée ; ne jamais placer l’UUID réel du registre ou une clé administrative dans le SQL versionné.
 
 Recettes : `node scripts/verify-contacts-db.mjs`, puis `node scripts/verify-contacts.mjs` et `node scripts/verify-contacts.mjs --supplemental-only` sous Node24. L’origine par défaut est locale ; seule `CRM_QA_ORIGIN=https://bmad-crm.vercel.app` est également acceptée. Les scripts utilisent des fixtures fictives identifiées et nettoient leurs contacts/reçus. Ne pas lancer plusieurs recettes Contacts simultanément. Les preuves locales sont sous `verification/2-1/` (ignoré).
+
+Pour le code 2.2, exécuter `node scripts/verify-contact-details-db.mjs`, puis `node scripts/verify-contact-details.mjs` sous Node 24. Ces recettes couvrent les nouveaux champs et la continuité des brouillons/commandes 2.1. Les preuves sont sous `verification/2-2/` (ignoré). La recette UI 2.1 conserve les anciens libellés de résolution de conflits et s’applique au client 2.1.
+
+`node scripts/verify-contact-details-transport.mjs` vérifie sans connexion le vrai code du transport, les versions de conflits v1 et la conservation des brouillons après validation renforcée. La recette UI complète inclut les refus HTTP ; ses reprises peuvent partager un `CRM_QA_RUN_ID` explicite, avec une empreinte identique du code produit. Un résultat partiel n’est pas une validation complète.
+
+`node scripts/verify-contact-details-review.mjs` exerce les conflits mixtes, les réponses de doublons inversées, les caractères non stockables et les correctifs de focus/pagination. Ses preuves sont séparées dans `verification/2-2/review/` ; exécuter ce script seul, après toute autre recette utilisant les fixtures Supabase.
+
+La migration additive `20260907200000_contact_details.sql` est appliquée au projet Supabase dédié, avec conservation des contacts et reçus historiques. Le client hébergé reste en 2.1 tant que 2.2 n’est pas explicitement déployée. Voir [la préparation 2.2](_bmad-output/implementation-artifacts/setup-2-2.md) et [sa spécification](_bmad-output/implementation-artifacts/spec-2-2-informations-contact.md).

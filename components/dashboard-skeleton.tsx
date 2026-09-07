@@ -20,7 +20,7 @@ export function ContactsSkeleton() {
   return <div aria-hidden="true" data-contacts-skeleton>
     <header className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><Skeleton className="w-fit text-[length:var(--text-heading)] font-semibold tracking-tight text-transparent">Contacts</Skeleton><Skeleton className="mt-2 w-fit text-sm text-transparent">Votre carnet de relations.</Skeleton></div><Skeleton className="h-11 w-44" /></header>
     <div className="mb-3 flex h-11 items-center justify-between gap-3"><Skeleton className="h-4 w-24" /><Skeleton className="h-11 w-28" /></div>
-    <div className="overflow-hidden rounded-md border"><Skeleton className="h-10 w-full rounded-none" />{Array.from({ length: 8 }, (_, index) => <div key={index} className="flex h-11 items-center gap-6 border-t px-4"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-1/3" /></div>)}</div>
+    <div className="overflow-hidden rounded-md border"><Skeleton className="h-10 w-full rounded-none" />{Array.from({ length: 8 }, (_, index) => <div key={index} className="flex h-11 items-center gap-6 border-t px-4">{Array.from({ length: 5 }, (_, field) => <Skeleton key={field} className="h-4 min-w-0 flex-1" />)}</div>)}</div>
     <div className="mt-4 flex justify-between gap-3"><Skeleton className="h-4 w-36" /><Skeleton className="h-11 w-44" /></div>
   </div>;
 }

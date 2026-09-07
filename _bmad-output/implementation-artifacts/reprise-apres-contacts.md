@@ -1,5 +1,11 @@
 # Point de reprise pour la formation
 
+## Actualisation après la session 2.2
+
+Le point d’arrêt initial ci-dessous a été levé par « démarrons », puis la spécification 2.2 approuvée par « c’est bon implemente ». La story 2.2 est maintenant implémentée, testée et revue localement sur `codex/2-2-informations-contact` ; lire `spec-2-2-informations-contact.md` et `setup-2-2.md`. Le sprint la place en review selon BMAD. La story 2.3 reste en backlog.
+
+Le client hébergé reste en 2.1. La migration Supabase additive 2.2 est appliquée et sa compatibilité avec le client hébergé a été vérifiée ; aucun push/déploiement 2.2 n’a été effectué. Le serveur local reste http://localhost:3000/contacts. Les sections suivantes conservent le point d’arrêt historique pour la formation.
+
 ## Consigne de Lilian du 7 septembre 2026
 
 Terminer et vérifier la story 2.1 « Créer et retrouver un contact sans perdre ma saisie », puis s’arrêter avant toute préparation ou implémentation de la story 2.2 « Compléter les informations et notes de mon contact ». Lilian souhaite démarrer cette prochaine story dans une nouvelle session pour sa formation.

@@ -44,7 +44,7 @@ development_status:
 
   epic-2: in-progress
   2-1-créer-et-retrouver-un-contact-sans-perdre-ma-saisie: review
-  2-2-compléter-les-informations-et-notes-de-mon-contact: backlog
+  2-2-compléter-les-informations-et-notes-de-mon-contact: review
   2-3-relier-mes-contacts-à-leurs-sociétés: backlog
   2-4-enregistrer-un-échange-et-retrouver-la-dernière-interaction: backlog
   2-5-corriger-un-échange-sans-déformer-son-historique: backlog
