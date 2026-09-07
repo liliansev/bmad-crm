@@ -2,7 +2,7 @@
 title: 'Créer et retrouver un contact sans perdre ma saisie'
 type: 'feature'
 created: '2026-09-07'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 baseline_commit: '7219864f281fa1aa3cb33360ff3bb1da75184bea'
 review_loop_iteration: 0
@@ -48,12 +48,12 @@ Jamais : email, photo, notes, sociétés, opportunités, recherche ou suppressio
 
 ## Tasks & Acceptance
 
-- [ ] `supabase/migrations/`, `scripts/verify-contacts-db.mjs` : schéma Contact, registre propriétaire privé, reçus transactionnels, RLS/droits, RPC create/update idempotente et conflits par champ ; tests directs adversariaux.
-- [ ] `lib/validations/contacts.ts`, `lib/contacts.ts`, `app/actions/contacts.ts` : contrats Zod, lectures paginées et commandes authentifiées, résultats canoniques sans secrets.
-- [ ] `lib/contacts-drafts.ts`, `lib/contacts-cache.ts` : brouillons par propriétaire/cible/génération, commande reprise, cache isolé et réponses obsolètes ignorées.
-- [ ] `app/(dashboard)/contacts/`, `components/contacts/`, `components/ui/` : liste, chargement, création et fiche droite rapides ; préchargement, URL locale sans RSC au clic ; erreurs/conflits/reprise et fermeture complète.
-- [ ] `components/auth/session-guard.tsx`, shell/navigation/skeleton : purge des surfaces privées y compris portails, sans effacer les brouillons ni casser la vérification temporaire au focus.
-- [ ] `scripts/verify-contacts.mjs` : exécution réelle de chaque ligne de matrice, pagination et clavier/cinq formats ; mesures de fluidité contextualisées, sans déclarer une cible atteinte sans mesure.
+- [x] `supabase/migrations/`, `scripts/verify-contacts-db.mjs` : schéma Contact, registre propriétaire privé, reçus transactionnels, RLS/droits, RPC create/update idempotente et conflits par champ ; tests directs adversariaux.
+- [x] `lib/validations/contacts.ts`, `lib/contacts.ts`, `app/actions/contacts.ts` : contrats Zod, lectures paginées et commandes authentifiées, résultats canoniques sans secrets.
+- [x] `lib/contacts-drafts.ts`, `lib/contacts-cache.ts` : brouillons par propriétaire/cible/génération, commande reprise, cache isolé et réponses obsolètes ignorées.
+- [x] `app/(dashboard)/contacts/`, `components/contacts/`, `components/ui/` : liste, chargement, création et fiche droite rapides ; préchargement, URL locale sans RSC au clic ; erreurs/conflits/reprise et fermeture complète.
+- [x] `components/auth/session-guard.tsx`, shell/navigation/skeleton : purge des surfaces privées y compris portails, sans effacer les brouillons ni casser la vérification temporaire au focus.
+- [x] `scripts/verify-contacts.mjs` : exécution réelle de chaque ligne de matrice, pagination et clavier/cinq formats ; mesures de fluidité contextualisées, sans déclarer une cible atteinte sans mesure.
 
 Acceptation : Given Contact créé, When rechargement/reconnexion, Then données retrouvées ; Given erreur/conflit, When réessai explicite, Then aucune saisie perdue ni duplication. Démonstration finale locale et hébergée avec un contact fictif identifiable, aucun module futur.
 
@@ -93,3 +93,9 @@ Groupes patch : B1 ; B2/E3 ; B3 ; B4/V2 ; B6 ; B7 ; B8/E2 ; B9 ; E1 ; V1. Aucun 
 ## Verification
 
 `npx tsc --noEmit`, scripts DB et navigateur (agent-browser, sans Playwright), rechargement réel et vérification sur URL hébergée après déploiement. Pas de build pendant développement. Aucun commit/push par sous-agent.
+
+### Résultat final
+
+Tous les groupes patch de revue sont corrigés et couverts par les contrôles ciblés. Les deux constats low B5/B10 sont rejetés avec justification, pas silencieusement résolus. Base réelle : 48 contrôles réussis ; après correctifs, local : 84 principaux, 24 complémentaires et 43 ciblés. HTTPS sur commit produit dd110fcc5da9ce22741e3ffb2939380f6ceef638 Ready : 43 ciblés, 24 complémentaires et 11 de démonstration réelle. TypeScript et build de livraison réussis. Captures relues. Fixtures nettoyées, un contact explicitement fictif conservé.
+
+Limite connue : les cibles d’ouverture 50/16 ms ne sont pas atteintes ; vue utilisable et confirmations mesurées avec conditions et variations dans setup-2-1. Aucune autre correction de revue acceptée en attente. Arrêt explicite avant la story 2.2 pour nouvelle session de formation, voir reprise-apres-contacts.md.

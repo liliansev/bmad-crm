@@ -63,3 +63,13 @@ Instruction de Lilian : arrêt après 2.1, avant toute préparation de 2.2. Voir
 ## Recette finale locale du candidat livré
 
 84 contrôles UI principaux et 24 complémentaires réussis après les correctifs, en plus des 43 contrôles ciblés. Contacts et reçus de recette nettoyés ; contacts préexistants comparés avant/après. Captures desktop/tablette/mobile relues. Le passage principal mesure une ouverture sans cache de 129,6 ms, des réouvertures de 18,9–44,7 ms, une vue utilisable en 3,27 s et 20 confirmations entre 116 et 277 ms. Le seuil de vue 2 s varie donc selon les passages locaux et n’est pas garanti ; les cibles d’ouverture 50/16 ms restent manquées. Ces limites de performance ne sont pas masquées par les assertions fonctionnelles.
+
+## Livraison HTTPS vérifiée
+
+Commit produit `dd110fcc5da9ce22741e3ffb2939380f6ceef638`, confirmé sur origin/main puis déploiement Vercel `dpl_EaxDeqPsoV1o3hmzD6DzqzuobuZG` Ready avec cette même révision. Alias canonique : https://bmad-crm.vercel.app/contacts. Migration Supabase inchangée.
+
+43 contrôles ciblés passent sur HTTPS (`verification/2-1/production-review/ui-results.json`). 11 contrôles de démonstration réels passent : connexion, création par formulaire, correction, rechargement, retour liste et relecture indépendante en base (`verification/2-1/production-demo/results.json`). Un seul contact de démonstration volontairement conservé : Camille Démo / Martin (démo fictive). Les comptes, identifiants et données existantes n’ont pas été réinitialisés.
+
+Mesures HTTPS du passage ciblé : ouverture sans cache 428 ms, réouvertures 19–42 ms, vue utilisable 1,81 s, 20 confirmations 400–716 ms. Cibles de fluidité 50/16 ms manquées ; vue sous 2 s et 20/20 confirmations sous 1 s observées dans ce passage. Cette limite est conservée pour la reprise, sans annoncer une conformité complète aux cibles de performance.
+
+24 contrôles complémentaires passent aussi sur HTTPS avec le contact de démonstration préexistant : API privée/CSRF, création avec réponse perdue, espaces du brouillon, pagination, lecture suspendue sans bloquer une mutation. Le contact existant a été comparé intact et les fixtures/reçus supprimés (`verification/2-1/production-supplemental/ui-results.json`).
