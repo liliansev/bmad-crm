@@ -72,5 +72,5 @@ planning_readiness:
 
 # Story 1.1 : Supabase dédié et Auth vérifiés en local ; configuration Vercel réservée à 1.3.
 
-# Formation : arrêt après clôture technique de 2.1, avant toute préparation de 2.2.
-# Point de reprise : reprise-apres-contacts.md.
+# Formation : 2.2 terminée techniquement ; reprise au début de BMAD 05 (tests et sécurité).
+# Conducteur actuel : tournage-bmad-05.md ; historique : reprise-apres-contacts.md.

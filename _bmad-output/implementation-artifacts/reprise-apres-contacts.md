@@ -1,5 +1,9 @@
 # Point de reprise pour la formation
 
+## Reprise actuelle : BMAD 05, tester et sécuriser
+
+Lilian a terminé la séquence précédente et demandé de préparer le tournage de BMAD 05. Le point de départ est le commit produit `948e5c4` (contacts 2.1 et 2.2 fonctionnels localement). Lire [le conducteur de tournage](tournage-bmad-05.md) : commandes existantes exposées dans package.json, parcours, prompts et limites du périmètre. La préparation ne lance pas la leçon de revue à la place de Lilian et ne démarre pas la story 2.3. Les points d’arrêt ci-dessous sont historiques.
+
 ## Actualisation après la session 2.2
 
 Le point d’arrêt initial ci-dessous a été levé par « démarrons », puis la spécification 2.2 approuvée par « c’est bon implemente ». La story 2.2 est maintenant implémentée, testée et revue localement sur `codex/2-2-informations-contact` ; lire `spec-2-2-informations-contact.md` et `setup-2-2.md`. Le sprint la place en review selon BMAD. La story 2.3 reste en backlog.

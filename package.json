@@ -11,7 +11,12 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "verify:auth": "node scripts/verify-auth.mjs"
+    "verify:auth": "node scripts/verify-auth.mjs",
+    "verify:contacts:transport": "node scripts/verify-contact-details-transport.mjs",
+    "verify:contacts:db": "node scripts/verify-contact-details-db.mjs",
+    "verify:contacts:http": "node scripts/verify-contact-details.mjs --http-only",
+    "verify:contacts:ui": "node scripts/verify-contact-details.mjs",
+    "verify:contacts:review": "node scripts/verify-contact-details-review.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
