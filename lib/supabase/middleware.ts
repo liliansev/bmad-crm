@@ -22,7 +22,7 @@ export async function updateSession(request: NextRequest) {
   });
   const { data, error } = await supabase.auth.getUser();
   const isOwner = !error && data.user?.id === env.SUPABASE_OWNER_ID;
-  const publicPath = request.nextUrl.pathname === "/connexion";
+  const publicPath = ["/connexion", "/mot-de-passe-oublie", "/reinitialiser"].includes(request.nextUrl.pathname);
   const sessionPath = request.nextUrl.pathname === "/api/session";
   const unavailable = !!error && (error.status === undefined || error.status >= 500);
 
@@ -45,5 +45,6 @@ export async function updateSession(request: NextRequest) {
     response = redirectResponse;
   }
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  if (publicPath) response.headers.set("Referrer-Policy", "no-referrer");
   return response;
 }

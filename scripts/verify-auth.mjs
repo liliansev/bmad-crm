@@ -255,7 +255,7 @@ async function isolatedProviderOutage() {
     const fakeOwner = '11111111-1111-4111-8111-111111111111';
     server = spawn(process.execPath,[resolve('node_modules/next/dist/bin/next'),'dev','--hostname','localhost','--port',String(isolatedPort)],{
       cwd:isolatedRoot,
-      env:{PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,NEXT_TELEMETRY_DISABLED:'1',NEXT_PUBLIC_SUPABASE_URL:'https://auth-outage.example.invalid',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_entirely_fictitious_qa_key',SUPABASE_OWNER_ID:fakeOwner},
+      env:{PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,NEXT_TELEMETRY_DISABLED:'1',NEXT_PUBLIC_APP_URL:isolatedOrigin,NEXT_PUBLIC_SUPABASE_URL:'https://auth-outage.example.invalid',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_entirely_fictitious_qa_key',SUPABASE_OWNER_ID:fakeOwner},
       stdio:['ignore','pipe','pipe'], detached:true,
     });
     server.stdout.resume(); server.stderr.resume();

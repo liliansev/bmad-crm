@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,5 +68,6 @@ export function LoginForm() {
     <Button type="submit" disabled={pending} className="h-11 w-full gap-2">
       {pending ? <><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Connexion en cours…</> : <>Se connecter <ArrowRight className="size-4" aria-hidden="true" /></>}
     </Button>
+    <Button asChild variant="link" className="min-h-11 w-full"><Link href="/mot-de-passe-oublie">Mot de passe oublié</Link></Button>
   </form>;
 }

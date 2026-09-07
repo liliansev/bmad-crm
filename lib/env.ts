@@ -11,7 +11,14 @@ export const publicEnvSchema = z.object({
   }),
 });
 
+export const appOriginSchema = z.url().refine((value) => {
+  const url = new URL(value);
+  return value === url.origin && !url.username && !url.password &&
+    (url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:" && url.hostname === "localhost"));
+}, "Origine applicative invalide.");
+
 export const serverEnvSchema = publicEnvSchema.extend({
+  NEXT_PUBLIC_APP_URL: appOriginSchema,
   SUPABASE_OWNER_ID: z.uuid(),
 });
 
@@ -30,5 +37,6 @@ export function getServerEnv() {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim(),
     SUPABASE_OWNER_ID: process.env.SUPABASE_OWNER_ID?.trim(),
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL?.trim(),
   });
 }
