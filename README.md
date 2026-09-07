@@ -1,6 +1,6 @@
 # CRM BMAD
 
-CRM interne privé, en français. Connexion e-mail/mot de passe, récupération d’accès et Accueil réservé à un propriétaire unique. Aucune inscription publique ni commande de déconnexion n’est exposée. Le périmètre métier est livré dans les stories suivantes.
+CRM interne privé, en français. Connexion e-mail/mot de passe, récupération d’accès et Accueil réservé à un propriétaire unique. Aucune inscription publique ni commande de déconnexion n’est exposée. Contacts permet de créer une personne avec son prénom ou son nom, puis de modifier sa fiche dans un panneau droit.
 
 ## Démarrage local
 
@@ -76,3 +76,14 @@ Demander un lien depuis le formulaire de récupération sur l’origine à véri
 Le script contrôle le domaine Supabase, le type recovery et la redirection exacte, ouvre le vrai lien, change le mot de passe, vérifie la reconnexion, refuse le lien consommé et le rejeu de la preuve. Le mot de passe initial est restauré dans `finally`, puis revérifié auprès d’Auth et dans le navigateur. Le fichier de lien est supprimé en fin de recette ; ni URL secrète ni tokens ne sont enregistrés dans les preuves. Exécuter cette recette seule pour éviter une autre connexion pendant le changement temporaire.
 
 L’option existante `--generated-link` utilise des fichiers distincts (`recovery-generated-link.json` en local, `recovery-hosted-generated-link.json` en HTTPS) et marque les résultats comme contrôle administrateur ; elle ne remplace jamais la preuve de réception. Les essais sur formats Chromium ne prouvent pas le comportement de Safari sur un appareil physique.
+
+
+## Contacts (story 2.1)
+
+Ouvrir **Contacts → Ajouter un contact**, saisir un prénom ou un nom puis **Ajouter**. Une confirmation indique le commit ; rouvrir une ligne permet de corriger ses deux champs et d’enregistrer. Aucun e-mail, société ou autre champ n’est encore livré.
+
+En cas de coupure, garder l’onglet ouvert et réessayer la confirmation. La commande originale est reprise sans doublon ; une saisie plus récente reste à enregistrer. Après reconnexion du même propriétaire, la reprise du brouillon est proposée. Les conflits sont résolus explicitement par champ.
+
+Le schéma versionné est sous `supabase/migrations/`. La migration initiale et le registre privé du propriétaire sont appliqués par administration au projet dédié ; les détails de réalisation et preuves sont dans [setup-2-1.md](_bmad-output/implementation-artifacts/setup-2-1.md). Ne pas rejouer une migration déjà appliquée ; ne jamais placer l’UUID réel du registre ou une clé administrative dans le SQL versionné.
+
+Recettes : `node scripts/verify-contacts-db.mjs`, puis `node scripts/verify-contacts.mjs` et `node scripts/verify-contacts.mjs --supplemental-only` sous Node24. L’origine par défaut est locale ; seule `CRM_QA_ORIGIN=https://bmad-crm.vercel.app` est également acceptée. Les scripts utilisent des fixtures fictives identifiées et nettoient leurs contacts/reçus. Ne pas lancer plusieurs recettes Contacts simultanément. Les preuves locales sont sous `verification/2-1/` (ignoré).

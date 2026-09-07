@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sessionStatusSchema } from "@/lib/validations/auth";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 
 export function SessionGuard({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const contentRef = useRef<HTMLDivElement>(null);
   const [checking, setChecking] = useState(false);
   useEffect(() => {
+    const lifecycle = new AbortController();
     let disposed = false;
     let leaving = false;
     let generation = 0;
@@ -20,12 +23,14 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
         contentRef.current.style.visibility = "hidden";
         contentRef.current.inert = true;
       }
+      document.documentElement.dataset.privateState = "checking";
       setChecking(true);
     };
     const leave = (reason: "expired" | "verification") => {
       if (disposed || leaving) return;
       leaving = true;
       hide();
+      window.dispatchEvent(new Event("crm-session-expired"));
       window.location.replace(`/connexion?session=${reason}`);
     };
     const check = async (foreground: boolean) => {
@@ -47,7 +52,9 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
           contentRef.current.style.visibility = "visible";
           contentRef.current.inert = false;
         }
+        delete document.documentElement.dataset.privateState;
         setChecking(false);
+        window.dispatchEvent(new Event("crm-session-ready"));
       } catch {
         if (isCurrent()) leave("verification");
       } finally {
@@ -62,6 +69,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_OUT") leave("expired");
       else if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") backgroundCheck();
     });
+    window.addEventListener("crm-session-denied", () => leave("expired"), { signal: lifecycle.signal });
     window.addEventListener("focus", foregroundCheck);
     window.addEventListener("pageshow", foregroundCheck);
     window.addEventListener("pagehide", hide);
@@ -70,6 +78,8 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
     foregroundCheck();
     return () => {
       disposed = true;
+      lifecycle.abort();
+      delete document.documentElement.dataset.privateState;
       invalidate();
       subscription.unsubscribe();
       window.clearInterval(interval);
@@ -80,7 +90,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
     };
   }, []);
   return <div className="relative">
-    {checking ? <div role="status" className="absolute inset-0"><span className="sr-only">Vérification de votre session…</span><DashboardSkeleton /></div> : null}
+    {checking ? <div role="status" className="absolute inset-0"><span className="sr-only">Vérification de votre session…</span><DashboardSkeleton section={pathname === "/contacts" ? "contacts" : "home"} /></div> : null}
     <div ref={contentRef} data-session-content>{children}</div>
   </div>;
 }

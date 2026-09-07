@@ -24,6 +24,7 @@ export async function updateSession(request: NextRequest) {
   const isOwner = !error && data.user?.id === env.SUPABASE_OWNER_ID;
   const publicPath = ["/connexion", "/mot-de-passe-oublie", "/reinitialiser"].includes(request.nextUrl.pathname);
   const sessionPath = request.nextUrl.pathname === "/api/session";
+  const contactsPath = request.nextUrl.pathname === "/api/contacts" || request.nextUrl.pathname === "/api/contacts/command";
   const unavailable = !!error && (error.status === undefined || error.status >= 500);
 
   if (!isOwner && !unavailable) {
@@ -33,7 +34,12 @@ export async function updateSession(request: NextRequest) {
       response.cookies.set(name, "", { path: "/", maxAge: 0 });
     });
   }
-  if (!isOwner && !publicPath && !sessionPath) {
+  if (!isOwner && contactsPath) {
+    const apiResponse = NextResponse.json({ status: unavailable ? "unavailable" : data.user ? "forbidden" : "unauthenticated", message: unavailable ? "Vérification de session indisponible." : "Reconnectez-vous pour retrouver votre brouillon." }, { status: unavailable ? 503 : data.user ? 403 : 401 });
+    response.cookies.getAll().forEach((cookie) => apiResponse.cookies.set(cookie));
+    response = apiResponse;
+  }
+  if (!isOwner && !publicPath && !sessionPath && !contactsPath) {
     const url = new URL("/connexion", request.url);
     if (unavailable) url.searchParams.set("session", "verification");
     const redirectResponse = NextResponse.redirect(url);

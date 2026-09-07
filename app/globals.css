@@ -46,3 +46,6 @@
 @media (hover: none), (pointer: coarse) {
   :focus-visible { box-shadow: none; outline: none; }
 }
+
+/* Authenticated portals share the same privacy gate as the page shell. */
+html[data-private-state="checking"] [data-private-surface] { visibility: hidden !important; pointer-events: none !important; }
