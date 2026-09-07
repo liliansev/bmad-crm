@@ -7,15 +7,22 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 const generatedLink = process.argv.includes('--generated-link');
-const mailPath = generatedLink ? '.local/recovery-generated-link.json' : '.local/recovery-mail.json';
+// An arbitrary HTTPS host must never receive the owner's credentials or recovery link.
+// This hosted origin is the dedicated target verified in setup-1-3.md.
+const origin = z.enum(['http://localhost:3000','https://bmad-crm.vercel.app']).safeParse(process.env.CRM_QA_ORIGIN ?? 'http://localhost:3000');
+if (!origin.success) { console.error('CRM_QA_ORIGIN refusée : utiliser une origine de recette vérifiée.'); process.exit(1); }
+const base=origin.data;
+const hosted=base.startsWith('https:');
+const mailPath = hosted
+  ? (generatedLink ? '.local/recovery-hosted-generated-link.json' : '.local/recovery-hosted-mail.json')
+  : (generatedLink ? '.local/recovery-generated-link.json' : '.local/recovery-mail.json');
 const options={auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}};
 let secret, mail, admin, password, capturedProof;
 let operation = 'préparation';
 const anon=()=>createClient(`https://${secret.project_ref}.supabase.co`,secret.anon_key,options);
 const exec=promisify(execFile);
-const session='bmad-recovery-real';
-const base='http://localhost:3000';
-const proof=resolve('_bmad-output/implementation-artifacts/verification/1-2');
+const session=hosted?'bmad-recovery-hosted':'bmad-recovery-real';
+const proof=resolve('_bmad-output/implementation-artifacts/verification',hosted?'1-3/recovery':'1-2');
 const results=[];
 let restoreNeeded=false;
 
@@ -34,17 +41,17 @@ function evaluate(code){operation='évaluation navigateur';return new Promise((r
   child.stdin.end(code);
 });}
 async function until(code){for(let i=0;i<100;i++){try{if(await evaluate(code))return true;}catch{/* A full navigation can briefly destroy the execution context. */}await new Promise(r=>setTimeout(r,200));}return false;}
-async function fill(entries){await evaluate(`(() => {const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const [id,value] of ${JSON.stringify(entries)}){const e=document.getElementById(id);setter.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}return true;})()`);}
+async function fill(entries){await evaluate(`(() => {if(location.origin!==${JSON.stringify(base)}) throw new Error('Origine inattendue');const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const [id,value] of ${JSON.stringify(entries)}){const e=document.getElementById(id);setter.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}return true;})()`);}
 async function openLink(expectForm=true){
   await browser('open',`${base}/connexion`);
   await evaluate(`location.assign(${JSON.stringify(mail.url)}); true`);
-  check(generatedLink?'Lien de contrôle ouvert et secret retiré de l’URL':'Lien natif reçu ouvert et secret retiré de l’URL',await until(`location.pathname==='/reinitialiser' && location.hash==='' && ${expectForm ? "!!document.querySelector('#confirmation')" : "!/chargement|vérification du lien/i.test(document.body.textContent)"}`));
+  check(generatedLink?'Lien de contrôle ouvert et secret retiré de l’URL':'Lien natif reçu ouvert et secret retiré de l’URL',await until(`location.origin===${JSON.stringify(base)} && location.pathname==='/reinitialiser' && location.hash==='' && ${expectForm ? "!!document.querySelector('#confirmation')" : "!/chargement|vérification du lien/i.test(document.body.textContent)"}`));
   await browser('snapshot','-i');
 }
 async function signIn(pwd){const client=anon();const r=await client.auth.signInWithPassword({email:secret.owner_email,password:pwd});if(r.data.session)await client.auth.signOut({scope:'local'});return r;}
 try{
   secret = z.object({project_ref:z.literal('otadrkhrjxafutocstzo'),service_role_key:z.string(),anon_key:z.string(),owner_id:z.uuid(),owner_email:z.email(),owner_password:z.string()}).parse(JSON.parse(await readFile('.local/bootstrap-secrets.json','utf8')));
-  mail = z.object({url:z.url().refine(value=>{const u=new URL(value);return u.origin==='https://otadrkhrjxafutocstzo.supabase.co'&&u.pathname==='/auth/v1/verify'&&u.searchParams.get('type')==='recovery'&&u.searchParams.get('redirect_to')==='http://localhost:3000/reinitialiser';}),message_id:z.string(),received_at:z.string()}).parse(JSON.parse(await readFile(mailPath,'utf8')));
+  mail = z.object({url:z.url().refine(value=>{const u=new URL(value);return u.origin==='https://otadrkhrjxafutocstzo.supabase.co'&&!u.username&&!u.password&&u.pathname==='/auth/v1/verify'&&u.searchParams.get('type')==='recovery'&&u.searchParams.get('redirect_to')===`${base}/reinitialiser`;}),message_id:z.string(),received_at:z.string()}).parse(JSON.parse(await readFile(mailPath,'utf8')));
   admin=createClient(`https://${secret.project_ref}.supabase.co`,secret.service_role_key,options);
   password=`Qa-${randomUUID()}!`;
   await mkdir(proof,{recursive:true});
@@ -117,14 +124,15 @@ finally{
   try {
     await evaluate(`(() => { if(window.__qaRecoveryOriginalFetch) window.fetch=window.__qaRecoveryOriginalFetch; delete window.__qaRecoveryProof; delete window.__qaRecoveryOriginalFetch; return true; })()`).catch(()=>{});
     capturedProof=null;
-    try {
-      await writeFile(resolve(proof,generatedLink?'generated-link-results.json':'real-mail-results.json'),JSON.stringify({date:new Date().toISOString(),node:process.version,mail:mail?{source:generatedLink?'admin-generated':'gmail',message_id:generatedLink?null:mail.message_id,received_at:generatedLink?null:mail.received_at}:null,results},null,2));
-    } catch { console.error('Écriture des preuves en échec, nettoyage poursuivi.'); process.exitCode=1; }
   } finally {
     try {
       await unlink(mailPath).catch(error=>{if(error.code!=='ENOENT'){console.error('Suppression du fichier de lien à reprendre.');process.exitCode=1;}});
     } finally {
       await browser('close').catch(()=>{console.error('Fermeture du navigateur à reprendre.');process.exitCode=1;});
+      try {
+        await mkdir(proof,{recursive:true});
+        await writeFile(resolve(proof,generatedLink?'generated-link-results.json':'real-mail-results.json'),JSON.stringify({date:new Date().toISOString(),node:process.version,origin:base,success:process.exitCode!==1,mail:mail?{source:generatedLink?'admin-generated':'gmail',message_id:generatedLink?null:mail.message_id,received_at:generatedLink?null:mail.received_at}:null,results},null,2));
+      } catch { console.error('Écriture des preuves en échec ; nettoyage terminé.'); process.exitCode=1; }
       capturedProof=null; password=null; mail=null; secret=null;
     }
   }
