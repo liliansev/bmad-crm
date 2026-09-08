@@ -87,6 +87,8 @@ Surfaces Q6 : 1440×900, 2560×1440, 402×874 et tablette portrait/paysage ; cap
 Ce lot est une recette fonctionnelle et de performance avant BMAD06. Il ne lance ni inventaire final de dette, ni refactorisation pédagogique, ni build/push/déploiement.
 
 
+Clôture documentaire finale : distinguer les acquis historiques de la story1.3 (première livraison Auth HTTPS déjà documentée Ready) et la nouvelle livraison frontend V1 intégrée réservée à BMAD06. Ne pas rouvrir artificiellement1.3 ou déclarer toutes les nouvelles fonctionnalités en production. bmad-build laisse volontairement spec done / sprint review après les revues ; vérifier les preuves des stories antérieures avant de clôturer les epics localement, sans relancer des analyses identiques. Les rétrospectives restent optionnelles ; aucune nouvelle étape de tournage imposée.
+
 ## Spec Change Log
 
 ## Review Triage Log

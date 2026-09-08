@@ -2,9 +2,10 @@
 title: 'Créer une opportunité et la relier à mon contexte'
 type: 'feature'
 created: '2026-09-08'
-status: 'draft'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: a49853d99deb4295ba79e717a94d9e3a3e22b0fd
 context:
   - /Users/a1207/CODE/apps/bmad-crm/AGENTS.md
   - /Users/a1207/CODE/apps/bmad-crm/_bmad-output/implementation-artifacts/epic-3-context.md
@@ -48,7 +49,7 @@ Jamais : Tâche avant 3.3, kanban complet avant 3.2, liens Échange/Opportunité
 
 ## Code Map
 
-État relu après implémentation de 2.5, revue finale en cours ; confirmer sa clôture au dispatch. Les exemples de contrats ci-dessous sont réels.
+État relu après clôture 2.5, commit a49853d ; sa revue et les corrections ont passé. Les exemples de contrats ci-dessous sont réels.
 
 - Accès existant : `lib/auth.ts`, `lib/contacts.ts` (`contactsClient`), `lib/supabase/`, `app/actions/companies.ts` et `app/api/companies/command/route.ts`. Suivre la frontière validée puis RPC, sans second mécanisme d’identité.
 - Exemples réels : `lib/companies.ts` (`readCompanies`, `readCompany`, `readCompanyContacts`), `lib/validations/companies.ts`, `lib/companies-{cache,drafts,transport}.ts`. Cache créé par shell/propriétaire, déduplication, révisions et générations ; étendre le pattern pour le patch par champ, sans recopier aveuglément le brouillon mono-champ Société.
@@ -59,11 +60,11 @@ Jamais : Tâche avant 3.3, kanban complet avant 3.2, liens Échange/Opportunité
 
 ## Tasks & Acceptance
 
-- [ ] Créer l’entité et les seules relations requises ; contraintes/versions, révision de workflow, droits privés, RPC et reçus transactionnels sans nettoyage des reçus existants.
-- [ ] Définir conversion décimale exacte partagée et bornes explicites cohérentes UI/Zod/SQL ; titre et Notes suivent les conventions de texte Unicode du projet, sans appliquer l’interdiction des chiffres des noms de contacts.
-- [ ] Livrer entrée Pipeline minimale, création contextuelle et panneau éditable ; chargement utile, vrai vide, erreurs, cache et brouillons isolés dès leur apparition.
-- [ ] Afficher/ouvrir les opportunités liées dans Contacts et les fiches contact/société ; pagination explicite de 25, totaux globaux, ordre création décroissante puis UUID croissant. La liste Sociétés conserve son contrat.
-- [ ] Vérifier matrice complète, rechargement, liens anciens/nouveaux, HTTP/RPC, clavier et reprise ; revue indépendante avant clôture.
+- [x] Créer l’entité et les seules relations requises ; contraintes/versions, révision de workflow, droits privés, RPC et reçus transactionnels sans nettoyage des reçus existants.
+- [x] Définir conversion décimale exacte partagée et bornes explicites cohérentes UI/Zod/SQL ; titre et Notes suivent les conventions de texte Unicode du projet, sans appliquer l’interdiction des chiffres des noms de contacts.
+- [x] Livrer entrée Pipeline minimale, création contextuelle et panneau éditable ; chargement utile, vrai vide, erreurs, cache et brouillons isolés dès leur apparition.
+- [x] Afficher/ouvrir les opportunités liées dans Contacts et les fiches contact/société ; pagination explicite de 25, totaux globaux, ordre création décroissante puis UUID croissant. La liste Sociétés conserve son contrat.
+- [x] Vérifier matrice complète, rechargement, liens anciens/nouveaux, HTTP/RPC, clavier et reprise. Trois revues indépendantes et leurs corrections vérifiées avant clôture.
 
 **AC1 — Création :** Given un titre valide, When Ajouter est confirmé, Then une seule opportunité À qualifier est relue avec montant exact, Notes et liens facultatifs ; titre vide et montant négatif sont refusés sans perte.
 
@@ -92,10 +93,57 @@ Relire les correctifs finaux2.5 avant de réutiliser les patrons. Une nouvelle s
 
 Le blur d’un champ modifié envoie ce champ une seule fois, avec sa base/version ; sérialiser les commandes du même champ. Les commandes indépendantes et leurs réponses peuvent arriver dans un ordre différent : préserver toutes générations récentes et empêcher l’écrasement d’un cache récent par un reçu ancien. Le futur kanban doit consommer le même état confirmé/brouillon/file que le panneau, sans second propriétaire d’une saisie du même champ. Préparer cette composition dès3.1, tout en laissant le rendu du kanban à3.2.
 
+### Organisation et vérification de cette implémentation
+
+La story2.5 est clôturée localement, données de recette nettoyées, créneau distant libre. L’agent d’implémentation prend cette seule3.1 sans commit ni édition de statut/spec. Il peut déléguer UI/cache/brouillons/tests navigateur avec fichiers disjoints après publication des contrats, tout en conservant SQL/validation/service/tests DB. Il coordonne une seule mutation distante à la fois puis donne le créneau navigateur à son UI. Aucun schéma Tâche, kanban ou agrégat gagné n’est à réaliser ici.
+
+Cible autorisée par mandat : bmad-crm/Persos/free/otadrkhrjxafutocstzo ; revalider avec `.local/verify-story-target.py` avant mutation. Migrations déjà appliquées par helper, ne pas rejouer les anciennes. Secrets `.local` jamais en sortie. Les recettes existantes montrent l’accès dédié et le nettoyage par reçus ; introduire une preuve de provenance exacte pour Opportunité, comptes/sessions fictifs et finaliseurs indépendants. Node24 : `/Users/a1207/.npm/_npx/460b723c8ad28bd7/node_modules/node/bin`. Garder dev existant localhost:3000 actif. Context7 avant usage bibliothèques, seuls skills BMAD ; pas de build, push ou déploiement.
+
+Vérifier les trois entrées de création, blur une seule fois, valeurs exactes, clavier/étapes, liens anciens/nouveaux et pagination, droits HTTP/RPC, reprise/conflicts/générations/fermeture. Inclure Enregistrer des dialogues parents, pas seulement boutons internes. Les états chargement/erreur doivent rester fermables. Captures inspectées et résultats JSON sous verification/3-1 ignoré ; mesures brutes avec conditions, séparer ouverture DOM/chargement des données/confirmation, résultat fonctionnel et verdicts de seuil. Si mode ciblé, ne pas écraser la preuve de recette complète. Les mesures globales Q6 avec toutes entités restent à3.8.
+
+- Colonne Opportunités de la liste Contacts : charger les compteurs globaux/liens de la page dans une projection groupée privée (au plus25 IDs strictement validés), ou enrichir sa lecture existante. Ne pas lancer25 lectures de pages Opportunités et transférer leurs Notes pour afficher25 compteurs. Les fiches conservent leurs listes contextuelles paginées complètes. Vérifier une page25contacts avec lecture groupée et revalidation après changement de lien. Cette précision évite un coût linéaire de requêtes ajouté par la nouvelle colonne.
+
 ## Spec Change Log
 
 ## Review Triage Log
 
+| Avis | Verdict | Preuve et route |
+|---|---|---|
+| B1 — contexte Société réutilisé | medium | OpportunityContextLinks garde result/page et son appel Société n'est pas keyed. Pendant A→B, les liens A restent réellement actifs sous B. Patch : clé par contexte et recette de lecture retardée. |
+| B2 — JSON local corrompu coupe la recherche | low | Le catch global de readOpportunityDraft interrompt bien le parcours après un JSON externe invalide. Les écritures applicatives JSON sont atomiques ; cas rare. Rejet BMAD : isoler chaque décodage ajoute des branches pour une corruption exceptionnelle, comme le cas historique2.2 B5. |
+| B3 — sélecteurs rechargés ensemble | low | Promise.all et loading commun attendent les deux pages. Le refus réseau devient un résultat indisponible, puis les contacts réussis sont utilisables ; ce n'est pas un blocage permanent ni un lien imposé. Une pagination peut retarder temporairement l'autre sélecteur. Rejet : deux circuits d'états supplémentaires pour ce retard secondaire, sans perte de données. |
+| B4 — UUID dans conflit de relation | medium | L'affichage générique lit company_id/primary_contact_id alors que le DTO contient les noms. Le choix utilisateur n'est pas intelligible. Patch direct : noms et libellés absence/indisponibilité ; recette de conflit relation. |
+| B5 — file unique par opportunité | false | La file conserve tous les champs demandés pendant running et les traite après acquittement, avec bases mixtes protégées ; aucun champ n'est perdu. Le contrat exige la sérialisation d'un champ et n'exige pas d'écritures HTTP parallèles. Une file commune garantit le replay et la garde SaveAll, couverts par transport35. |
+| B6 — limites non affichées avant blur | false | Le contrat retenu est validation à la sortie de champ avec erreur associée et saisie conservée, assuré par parseField/OpportunityInputError et le focus de save. Aucun compteur ou blocage pendant frappe n'est exigé ; le risque de perte annoncé n'existe pas. |
+| B7 — indisponible pendant récupération | false | L'état initial représente un échec confirmé, et le compteur ajoute explicitement « Actualisation… » pendant loading. Garder le dernier échec jusqu'au succès ne prétend ni être vide ni avoir réussi. |
+| B8 — fluidité stricte non acquise | medium | Seuil chaud16ms atteint seulement2/5, froid naturel non mesuré, comme indiqué explicitement dans Verification et la preuve. Le remède proposé « conserver exigence ouverte » est déjà présent : série globale et mesure finale3.8. Rejet de la modification de spec prescrite par la règle BMAD ; aucune conformité stricte n'est revendiquée. Le bilan V1 doit conserver cette limite et l'évaluer en3.8. |
+| B9 — nouveau finaliseur DB non exécuté | medium | La condition de retrait du manifeste a changé après DB49 ; seul son contrôle syntaxique est attesté. Patch de recette ciblée du chemin courant, succès/nettoyage répété et échec contrôlé d'un finaliseur, sans réattribuer la preuve49. |
+| B10 — reformater et renommer les phases | false | Le constat de lignes denses est exact, mais aucun caller divergent ni invariant violé n'est démontré par ce point. Refactorisation générale explicitement conservée pour BMAD06 ; ne pas la déclencher pour une préférence de présentation. |
+| E1 — contexte Société réutilisé | medium | Vérification indépendante identique à B1 : absence de clé et état conservé au changement companyId. Même cause ; patch groupé avec B1 après verdict individuel. |
+| E2 — preventBlur reste actif | medium | Seul pointerup sur le footer réinitialise le ref ; relâchement extérieur ou pointercancel laisse les futurs blurs inactifs. Patch : réinitialisation globale nettoyée, test des deux chemins et de l'annulation normale. |
+| G1 — faux clic dans recette Annuler | medium | Gap pré-vérifié : HTMLElement.click ne reproduit pas le blur du pointeur. Patch : vrai clic agent-browser depuis Notes focalisées, Abandonner puis relecture inchangée. |
+| G2 — ordre des pages non vérifié | medium | Gap pré-vérifié : tailles/unicité ne protègent ni ordre des dates ni égalités UUID. Patch : fixture transactionnelle ordonnée indépendamment, égalité à la frontière25 et comparaison exacte des deux pages. |
+
+B1/E1 partagent leur cause ; les autres constats restent individuels. Corrections bornées des chemins existants confiées à l'implémenteur initial. Aucune modification de l'intention figée, aucune refactorisation globale ni déploiement.
+
 ## Verification
 
-Préparation documentaire uniquement : aucune migration, recette ou performance exécutée par cette spec. Au dispatch confirmer clôture epic 2 et identité/cible Supabase selon mandat ; un seul agent effectue les mutations distantes. TypeScript Node 24, tests ciblés conversion/versions/idempotence/droits et parcours agent-browser réels avec captures inspectées ; valeurs relues après rechargement. Fixtures nominatives avec empreintes avant/après et nettoyage exact. Vérifier desktop 1440×900/2560×1440, mobile 402×874, tablette portrait/paysage, focus/Échap et absence de scroll horizontal de page. Mesurer ouverture panneau ≤50 ms à froid/≤16 ms à chaud et réaction d’édition ≤16 ms ; ne pas annoncer de mesure non effectuée. Aucun build pendant développement ni livraison frontend implicite.
+Implémentation, vérifications réelles et revue indépendante terminées. Rapport détaillé et matrice des dix cas : `verification/3-1/integration-review.md` (preuves locales ignorées).
+
+- Contrat40, DB49, compteurs groupés11, transport35, HTTP anonyme3 et authentifié6 : passés. Deux migrations additives appliquées sur cible privée vérifiée, aucun schéma Tâche.
+- 128 assertions navigateur uniques passées sur plusieurs phases, dont clavier10 et finition16. Les premières recettes partielles en échec sont conservées avec leur cause et les contrôles ciblés ultérieurs ; ce résultat ne prétend pas être une recette complète unique rejouée.
+- Création par trois entrées, exactitude des montants, champs/étapes/relations, pagination26, page25Contacts sans fetch par ligne, droits, conflits, réponse perdue, générations, vraie expiration/reconnexion, stockage indisponible, gardes et réponse tardive exercés.
+- Captures finales inspectées : 2560×1440, 1440×900, 768×1024, 1024×768, 402×874. Fixtures supprimées par provenance exacte, finaliseurs et empreintes préexistantes vérifiés. TypeScript Node24 et diff-check propres.
+- Ouverture DOM chaude : 39.1/19.8/9.7/19.6/9.6ms, seulement2/5 sous16ms. Réaction input→rAF : 3.5/4.4/4.4/2.6/2.6ms. Échantillon distinct : DOM23.7ms, contenu789.5ms, confirmation690.4ms. Peinture physique et ouverture froide naturelle non mesurées ; le seuil chaud strict n'est pas acquis. Série19/20 et volumeQ6 global restent3.8.
+- La garde finale du script DB a été renforcée après sa recette49 et sa syntaxe vérifiée ; ne pas attribuer cette preuve antérieure au nouveau finaliseur. Aucun build, push ou déploiement frontend.
+
+
+### Clôture après revue
+
+Les trois couches indépendantes ont rendu14avis, tous triés individuellement ci-dessus. Les patchs retenus sont réalisés : composant contextuel keyed, noms de conflit lisibles, garde blur réinitialisée après geste interrompu. Les lacunes de recette sont couvertes sans relancer les domaines inchangés.
+
+- Ordre global :28fixtures datées précisément, oracle JS indépendant, pages25+3 avec égalité à la frontière25 ; réussite. Finaliseur actuel : échec local injecté après révocation effective, manifeste conservé puis reprise réussie ; nettoyages répétés0 et empreintes intactes. Preuves `opportunities-db-review-{injected,finalizer-retry,summary}.json`, DB49 historique conservée.
+- UI : contexte Société Apage2→Bpage1 vide durant attente puis B seule, réponseA tardive ignorée. Même parcours Contact dans `opportunities-review-contacts-only-ui-results.json` :11assertions réussies, finaliseurs tous vrais.
+- Conflits société/contact, choix local/distant, absence et noms indisponibles : toutes assertions du segment editors réussies avant une interruption du helper pointeur. Segment pointer autonome ensuite réussi13assertions : véritable clic Annuler/Abandonner depuis Notes focalisées, valeur/révision inchangées ; relâchement extérieur et pointercancel après mousedown, puis blur qui sauvegarde. L'événement pointercancel est injecté ; press/release extérieurs et clics sont pilotés réellement par agent-browser.
+- Fichiers partiels en échec conservés, causes d'instrumentation et reprises ciblées explicites ; aucune prétention de recette unique entièrement rejouée. Capture finale `opportunities-review-fixes.png` inspectée par le parent. Les finaliseurs des segments préservent les données préexistantes et retirent les fixtures exactes.
+- Consolidation après revue :37assertions UI uniques, preuves sources conservées. TypeScript final Node24 et diff-check propres. La limite de performance chaude16ms reste celle déjà décrite, à mesurer sur la V1 intégrée3.8 ; aucune livraison frontend ou refactorisation générale.

@@ -74,6 +74,19 @@ Jamais : priorité numérique inventée, revenu agrégé anticipé, intégration
 
 ## Implementation Notes
 
+Préparation technique avant 3.5 finale :
+
+- Projection globale privée en une lecture cohérente, même service de jour métier serveur que Relances. Trier toutes les tâches actives jointes à des opportunités ouvertes puis LIMIT 5 ; aucune dépendance à une page Relances. Exprimer ordre par groupe : échéance <= business_date d'abord ; dans ce groupe rang étape proposal/discussing/qualifying puis échéance ; futures échéance puis rang étape ; création tâche et UUID asc terminent toujours. Utiliser types dates, pas un calcul de retard en millisecondes.
+- Retour comporte business_date et les 0–5 éléments validés ; chaque ligne porte tâche/opportunité/étape/date canonique. Réutiliser DTO et labels canoniques, pas score public ni donnée financière. Cache propriétaire et epoch de requête, événements de mutation communs Tâche/Opportunité et horloge Paris de3.5. Ne pas créer un second timer ou une deuxième politique de timezone.
+- Le panneau ouvert peut modifier les données via fonctions existantes ; Accueil reste sans Fait/report en ligne. Un classement revalidé ne ferme pas une fiche sélectionnée ni ne perd ses brouillons si son opportunité sort du top5. Les guards navigation/connexion/focus proviennent du shell commun, le lien Voir toutes les relances est présent aussi dans le vide et l'erreur récupérable.
+- Tests métier indépendants : min(5,N) pour N=0/1/4/5/6 ; proposition aujourd'hui devant qualification hier ; futures départagées d'abord par date ; >25 candidates avec une priorité globale absente de la première page ; égalités jusqu'à UUID ; toutes combinaisons état tâche/étape close exclues. Recette réelle minuit/focus avec changement de classement, mutation depuis panneau et autre onglet, ancienne réponse retenue, lien Relances et état erreur≠vide. Réutiliser l'oracle de dates3.5 ; exposer aucune horloge de test dans la route publique.
+
+### Oracle de classement et transitions croisées
+
+Jeu partagé3.5 : 26todo aujourd'hui sur26affaires ouvertes, mêmes créations, 25qualifying puis1proposal en dernierUUID. Attendre exactement proposal,Q01,Q02,Q03,Q04 : cela distingue un tri global d'un top5 calculé depuis la première page. ReporterQ01 àhier conserve cette position aprèsproposal, puisque l'étape précède l'échéance dans le groupe dû. Petit jeu distinct : uneéchue, demainqualifying, demainproposal, après-demainproposal : échue, demainproposal, demainqualifying, après-demainproposal, quatre lignes seulement.
+
+Fermer l'affaire d'une tâche active avec conservation puis réouvrir : même tâche/échéance dans Relances à chaque étape ; exclusion puis réintégration Accueil. Répéter avec annulation : disparition des actives, aucune résurrection àréouverture. Retour d'onglet/focus recharge depuis le serveur ; aucune propagation instantanée des seuls événements window entre onglets supposée. Jour serveur authoritative, horloge client décalée ne crée pas une boucle. La simulation de minuterie navigateur ne suffit pas à prouver la classification SQL àminuit ; vérifier les deux séparément comme3.5.
+
 ## Spec Change Log
 
 ## Review Triage Log

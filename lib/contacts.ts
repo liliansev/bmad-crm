@@ -28,10 +28,16 @@ export async function readContacts(page: number): Promise<ContactsPage> {
     const { data, error, count } = await auth.client.from("contacts").select(`${columns},company:companies!contacts_company_owner_fk(id,name)`, { count: "exact" }).order("last_name").order("first_name").order("id").range((page - 1) * CONTACT_PAGE_SIZE, page * CONTACT_PAGE_SIZE - 1);
     if (error || count === null) return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." };
     const contacts = z.array(z.unknown()).parse(data).map(value => contactSummarySchema.parse(projectContact(value)));
-    const projection = await auth.client.rpc("contacts_last_interactions", { p_ids: contacts.map(contact => contact.id) });
-    if (projection.error) return { status: "unavailable", message: "Impossible de charger les dernières interactions. Réessayez." };
+    const ids = contacts.map(contact => contact.id);
+    const [projection, opportunities] = await Promise.all([
+      auth.client.rpc("contacts_last_interactions", { p_ids: ids }),
+      auth.client.rpc("contacts_opportunity_counts", { p_ids: ids }),
+    ]);
+    if (projection.error || opportunities.error) return { status: "unavailable", message: "Impossible de charger le contexte des contacts. Réessayez." };
     const dates = z.record(z.uuid(), z.string().nullable()).parse(projection.data);
-    return { status: "success", contacts: contacts.map(contact => ({ ...contact, last_interaction: dates[contact.id] ?? null })), total: count, page };
+    const counts = z.record(z.uuid(), z.number().int().nonnegative()).parse(opportunities.data);
+    if (ids.some(id => counts[id] === undefined)) return { status: "unavailable", message: "Compteurs d’opportunités indisponibles. Réessayez." };
+    return { status: "success", contacts: contacts.map(contact => ({ ...contact, last_interaction: dates[contact.id] ?? null, opportunity_count: counts[contact.id] })), total: count, page };
   } catch { return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." }; }
 }
 

@@ -12,6 +12,7 @@ import { CONTACT_FIELDS, FIELD_LABELS, FIELD_LIMITS, canonicalField, emailSchema
 import { connectLegacyDraft, acknowledge, freshDraft, isDirty, makeCommand, readDraft, removeDraft, writeDraft, type ContactDraft } from "@/lib/contacts-drafts";
 
 import { ExchangeEditor, type ExchangeEditorHandle } from "@/components/exchanges/exchange-editor";
+import { OpportunityLinks } from "@/components/opportunities/opportunity-links";
 import { ExchangeHistory } from "@/components/exchanges/exchange-history";
 import { ContactCompanyEditor, type CompanyEditorHandle } from "./contact-company-editor";
 
@@ -234,7 +235,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         })}
       </fieldset>
       {contact ? <ContactCompanyEditor ownerId={ownerId} contactId={contact.id} handle={relationEditor} /> : null}
-      {contact ? <><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setCreateExchangeSaving} /><ExchangeHistory ownerId={ownerId} handle={exchangeHistory} onBusyChange={setUpdateExchangeSaving} contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
+      {contact ? <><OpportunityLinks contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setCreateExchangeSaving} /><ExchangeHistory ownerId={ownerId} handle={exchangeHistory} onBusyChange={setUpdateExchangeSaving} contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
       <p id="contact-help" className="text-xs text-muted-foreground">Un prénom ou un nom suffit. Enregistrez pour confirmer vos changements.</p>
       {storageError ? <p role="alert" className="text-sm text-destructive">Le stockage de cet onglet est indisponible. Gardez cette page ouverte jusqu’à confirmation.</p> : null}
       {message ? <p role="status" aria-live="polite" className="text-sm" data-contact-message>{message}</p> : null}

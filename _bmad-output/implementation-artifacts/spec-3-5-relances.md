@@ -73,6 +73,25 @@ Jamais : tâches d’affaires closes masquées, option de filtre, accueil artifi
 
 ## Implementation Notes
 
+Préparation avant lecture des contrats Tâche définitifs :
+
+- Une projection serveur renvoie `business_date` calculée par `(statement_timestamp() AT TIME ZONE 'Europe/Paris')::date`, plus quatre sections paginées et totaux du même instantané. Date métier serveur fait foi ; pas de paramètre HTTP autorisant un client à choisir arbitrairement « aujourd’hui » dans le chemin public. Les tests peuvent exercer une fonction pure interne de classement avec un jour explicite et l'horloge navigateur, sans changer l'horloge système ni exposer un override de production.
+- Créer/réutiliser un seul service client de jour Paris à partir de Intl, sans dépendance supplémentaire : minuterie jusqu'au prochain changement de date Paris, recomputation après réveil/focus/visibility/online. Ne pas additionner 24 heures à minuit : les journées DST font 23/25 heures. La date issue du serveur et les lignes restent affichées ensemble ; après minuit conserver un état revalidation explicite plutôt que combiner nouveaux libellés et anciens compteurs. Une réponse d'un jour/epoch précédent ne remplace pas la projection actuelle.
+- Lecture en quatre rubriques, pages indépendantes 25, sections et paramètres strictement validés, offset borné. Ramener une page devenue vide à sa dernière page valide après mouvement ; compteur global et tri complet appliqués avant LIMIT. Les fermées sont présentes parmi actives ; sans-action utilise NOT EXISTS active et étapes ouvertes, pas « aucune tâche historique ».
+- Date en ligne : partager store Tâche et commande update des dialogues ; saisir sans envoi à chaque frappe, confirmer au changement validé ou blur sans double soumission, garder brouillon même si une relecture déplacerait la ligne. Le Fait utilise complete existant, double clic verrouillé, résultat exact de retry. Une réponse reçue doit confirmer la bonne génération avant de retirer son draft. Une date invalide reste visible avec erreur associée ; ouverture d'une affaire/pagination/navigation honore le guard Q4.
+- L'ajout de checkbox standard nécessite l'inventaire UI et Context7 puis shadcn CLI, jamais un div simulé. Actions tactiles et clavier explicites. Les nouvelles surfaces réutilisent le panneau Opportunité, ses guards et cache, sans second moteur de mutations.
+- Vérifications ciblées : oracle indépendant avec >25 par rubrique, égalités date/création, affaire close avec active et ouverte avec seulement passées ; hier/aujourd'hui/demain Paris, secondes avant/après minuit et DST. Comparer IDs/totaux/pages exacts, puis effectuer Fait/report réel et recharger. Ancienne réponse retenue après mutation ou changement de jour, autre onglet, expiration/stockage et ligne en saisie. Ne pas considérer tests purs du tri comme preuve du branchement réel de la minuterie et des événements navigateur.
+
+### Précisions de recette avant dispatch
+
+Le mot « passées » dans les lignes parlant d'exclusion désigne les tâches historiques terminées/annulées, jamais une échéance passée : les tâches todo en retard sont obligatoirement incluses, conformément au canon et à l'Intent. Ce rappel corrige une ambiguïté rédactionnelle sans nouvel arbitrage.
+
+Chaque rubrique retourne sa page effectivement retenue après recalage, total et lignes sur le même instantané, business_date commun. Préférer le recalage serveur dans cette lecture ; ne pas montrer ancien total et nouveau numéro de page. Une mutation dans l'ongletB suivie de visibilitychange visible/focusA doit recharger A : les événements métier window seuls ne traversent pas les onglets. Aucune synchronisation instantanée en arrière-plan supplémentaire n'est requise.
+
+La date serveur de la projection est l'autorité d'affichage. Une horloge client décalée déclenche au plus une revalidation raisonnable, jamais un rejet infini du jour serveur ou une boucle de requêtes. La recette distingue (a) classification SQL avec instant injecté uniquement dans une fonction interne non exposée et (b) vrai branchement minuterie/visibilité/focus → fetch ; changer uniquement Date navigateur ne simule pas statement_timestamp PostgreSQL.
+
+Oracle réutilisable : 26tâches todo ouvertes aujourd'hui, créations égales et UUID connus, dont25 qualifying puis1 proposal en dernière positionUUID. Relances affiche25+1, Accueil doit commencer par la proposal malgré sa position page2. Reporter une qualifying àhier, terminer la proposal puis revenir sur l'onglet dont Aujourd'hui était page2 : total24/page1, En retard1. Déplacer successivement le même lot entre rubriques puis terminer ses tâches pour tester Sans prochaine action sans multiplier quatre jeux permanents. D−1/D/D+1 avant puis après minuit : 1/1/1 devient2/1/0 ; dates stockées inchangées. Tester joursParis23h/25h et réponse ancienne libérée après récente, sans perte de brouillon.
+
 ## Spec Change Log
 
 ## Review Triage Log

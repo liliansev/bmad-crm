@@ -1,0 +1,30 @@
+import { z } from 'zod';
+export const MAX_AMOUNT_CENTS='9223372036854775807';
+export const opportunityStageSchema=z.enum(['qualifying','discussing','proposal','won','lost']);
+export const OPPORTUNITY_STAGE_LABELS={qualifying:'À qualifier',discussing:'Échange en cours',proposal:'Proposition envoyée',won:'Gagnée',lost:'Perdue'} as const;
+export const opportunityFieldSchema=z.enum(['title','amount_cents','notes','company_id','primary_contact_id']);
+const version=z.number().int().min(1).max(2147483646);
+const text=(max:number)=>z.string().refine(v=>!/[\u0000\uD800-\uDFFF]/u.test(v),'Caractère non pris en charge.').refine(v=>Array.from(v).length<=max,`Maximum ${max} caractères.`);
+export const opportunityAmountSchema=z.string().regex(/^(0|[1-9][0-9]*)$/,'Montant non valide.').refine(v=>v.length<19||(v.length===19&&v<=MAX_AMOUNT_CENTS),'Montant trop élevé.').nullable();
+export function decimalToCents(input:string):string|null {const value=input.trim();if(!value)return null;if(!/^\d+(?:[.,]\d{1,2})?$/.test(value))throw new Error('Indiquez un montant positif avec deux décimales maximum.');const [whole,fraction='']=value.split(/[.,]/);const cents=(whole+fraction.padEnd(2,'0')).replace(/^0+(?=\d)/,'');return opportunityAmountSchema.parse(cents);}
+export function centsToDecimal(value:string|null):string {if(value===null)return '';opportunityAmountSchema.parse(value);const padded=value.padStart(3,'0');return `${padded.slice(0,-2)},${padded.slice(-2)}`;}
+export const opportunityFieldsSchema=z.object({title:z.string().trim().pipe(text(200)).refine(v=>v.length>0,'Indiquez un titre.'),amount_cents:opportunityAmountSchema,notes:text(20000),company_id:z.uuid().nullable(),primary_contact_id:z.uuid().nullable()}).strict();
+export const opportunitySchema=opportunityFieldsSchema.extend({id:z.uuid(),stage:opportunityStageSchema,revision:version,workflow_revision:version,field_versions:z.object({title:version,amount_cents:version,notes:version,company_id:version,primary_contact_id:version}).strict(),created_at:z.string(),updated_at:z.string(),company_name:z.string().nullable().optional(),contact_name:z.string().nullable().optional()});
+export const opportunityCreateCommandSchema=z.object({operation:z.literal('create'),command_id:z.uuid(),fields:opportunityFieldsSchema}).strict();
+export const opportunityUpdateCommandSchema=z.object({operation:z.literal('update'),command_id:z.uuid(),opportunity_id:z.uuid(),fields:opportunityFieldsSchema.partial(),base_versions:opportunitySchema.shape.field_versions.partial()}).strict().refine(c=>Object.keys(c.fields).length>0&&Object.keys(c.fields).sort().join(',')===Object.keys(c.base_versions).sort().join(','),'Les versions doivent correspondre aux champs modifiés.');
+export const opportunityTransitionCommandSchema=z.object({operation:z.literal('transition'),command_id:z.uuid(),opportunity_id:z.uuid(),stage:opportunityStageSchema,base_workflow_revision:version}).strict();
+export const opportunityCommandSchema=z.union([opportunityCreateCommandSchema,opportunityUpdateCommandSchema,opportunityTransitionCommandSchema]);
+export const opportunityFailureSchema=z.object({status:z.enum(['validation','unauthenticated','forbidden','not_found','unavailable']),message:z.string(),field:opportunityFieldSchema.optional()});
+export const opportunityReadSchema=z.union([z.object({status:z.literal('success'),opportunity:opportunitySchema}),opportunityFailureSchema]);
+export const opportunityResultSchema=z.union([z.object({status:z.literal('success'),opportunity:opportunitySchema,affected:z.object({contact_ids:z.array(z.uuid()),company_ids:z.array(z.uuid())}).optional()}),z.object({status:z.literal('conflict'),opportunity:opportunitySchema,conflicting_fields:z.array(z.union([opportunityFieldSchema,z.literal('stage')])).optional(),message:z.string()}),opportunityFailureSchema]);
+export const opportunitiesPageSchema=z.union([z.object({status:z.literal('success'),opportunities:z.array(opportunitySchema),total:z.number().int().nonnegative(),page:version}),opportunityFailureSchema]);
+export type Opportunity=z.infer<typeof opportunitySchema>;
+export type OpportunityField=z.infer<typeof opportunityFieldSchema>;
+export type OpportunityStage=z.infer<typeof opportunityStageSchema>;
+export type OpportunityCommand=z.infer<typeof opportunityCommandSchema>;
+export type OpportunityCreateCommand=z.infer<typeof opportunityCreateCommandSchema>;
+export type OpportunityUpdateCommand=z.infer<typeof opportunityUpdateCommandSchema>;
+export type OpportunityTransitionCommand=z.infer<typeof opportunityTransitionCommandSchema>;
+export type OpportunityResult=z.infer<typeof opportunityResultSchema>;
+export type OpportunityReadResult=z.infer<typeof opportunityReadSchema>;
+export type OpportunitiesPage=z.infer<typeof opportunitiesPageSchema>;

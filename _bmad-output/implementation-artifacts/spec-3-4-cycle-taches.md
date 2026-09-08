@@ -70,6 +70,15 @@ Jamais : restauration d’une annulée, journal de toutes versions/transitions, 
 
 ## Implementation Notes
 
+Préparation technique avant code 3.3 final : conserver sa source unique de commandes/verrous/révisions/reçus ; relire ses contrats exacts avant dispatch.
+
+- Étendre la commande Tâche avec complete/cancel/restore contenant command_id, opportunity_id, task_id et base_workflow_revision. Parent verrouillé avant tâche ; état métier vérifié sous verrou, transaction unique et index partiel une active comme ultime invariant. Pas de mise à jour libre du statut via le patch titre/date.
+- complete : uniquement todo→completed, completed_at et status_changed_at serveur. cancel : todo→cancelled, completed_at nul, confirmation UI explicite. restore : uniquement completed→todo et aucune autre active, échéance inchangée, completed_at effacé. Nouvelle clé sur état invalide refusée ; retry identique rejoue le résultat et timestamp originaux. Réouverture Opportunité ne restaure rien. La tâche active d’une affaire close reste éditable et visible selon intention.
+- Correction titre/date : versions ciblées et workflow_revision comme 3.3 ; conserve statut, completed_at et status_changed_at, donc aucun reclassement artificiel d’une tâche historique. Toute commande mutante invalide revision et workflow_revision parent une seule fois sans toucher aux versions des Notes/montant.
+- Projection : active nullable séparée de l’historique non-todo, dix par page, total global, ordre status_changed_at DESC/id DESC. Instantané cohérent, page ramenée à une page existante après restauration. Erreur ≠ historique vide. Pas de compteur calculé sur la page.
+- UI : Fait confirmé libère la place, puis proposer simplement Ajouter la suivante sans ouverture automatique. Restaurer une annulée n’est pas proposé et reste interdit côté serveur ; conflit avec autre active n’annule ni ne remplace celle-ci. Réutiliser dialogues, drafts, protections de fermeture et revalidation 3.3 ; aucun retry automatique avec version réactualisée après conflit.
+- Tests ciblés : états acceptés/refusés, complete retry timestamp inchangé, restore/création simultanés et parent task_id incohérent, indépendance Notes/workflow, >10 historiques et égalités, correction qui ne bouge pas le tri, restauration qui retire une passée, dates conservées, ancienne lecture retenue puis résultat récent. Vérifier les vrais clics Fait/Annuler/Rétablir, confirmation et échec, parent Save/Close, génération suivante pendant réponse perdue, expiration/stockage. Réutiliser les preuves 3.3 inchangées ; ne pas répéter un full run sans nouvelle frontière.
+
 ## Spec Change Log
 
 ## Review Triage Log
