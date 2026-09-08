@@ -11,17 +11,24 @@ import { fetchEmailDuplicates, sendContactCommand } from "@/lib/contacts-transpo
 import { CONTACT_FIELDS, FIELD_LABELS, FIELD_LIMITS, canonicalField, emailSchema, linkedinSchema, contactEditorSchema, type DuplicatesResult, type Contact, type ContactFields, type ContactResult } from "@/lib/validations/contacts";
 import { connectLegacyDraft, acknowledge, freshDraft, isDirty, makeCommand, readDraft, removeDraft, writeDraft, type ContactDraft } from "@/lib/contacts-drafts";
 
+import { ExchangeEditor, type ExchangeEditorHandle } from "@/components/exchanges/exchange-editor";
+import { ExchangeHistory } from "@/components/exchanges/exchange-history";
 import { ContactCompanyEditor, type CompanyEditorHandle } from "./contact-company-editor";
 
 export type EditorHandle = { requestClose: () => void };
 type Props = { ownerId: string; target: string; contact: Contact | null; handle: React.RefObject<EditorHandle | null>; onSaved: (contact: Contact) => void; onClose: () => void; onCancelClose: () => void };
 export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClose, onCancelClose }: Props) {
+  const pendingExchangeHref = useRef<string | null>(null);
+  const clearNavigation = () => { pendingExchangeHref.current = null; onCancelClose(); };
+  const finishClose = () => { if (inFlight.current || exchangeEditor.current?.busy()) return; const href = pendingExchangeHref.current; pendingExchangeHref.current = null; onClose(); if (href) window.location.assign(href); };
+  const exchangeEditor = useRef<ExchangeEditorHandle | null>(null);
   const relationEditor = useRef<CompanyEditorHandle | null>(null);
   const [draft, setDraft] = useState(() => freshDraft(target, contact));
   const draftRef = useRef(draft);
   const [recoverable, setRecoverable] = useState<ContactDraft | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exchangeSaving, setExchangeSaving] = useState(false);
   const inFlight = useRef(false);
   const active = useRef(true);
   const [message, setMessage] = useState("");
@@ -80,7 +87,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     }, 350);
     return () => { current = false; clearTimeout(timer); };
   }, [draft.values.email, draft.base?.id, draft.base?.revision, contact?.revision, duplicatePage, duplicateRetry, recoverable, recoveryChecked]);
-  const requestClose = () => { if (isDirty(draftRef.current) || recoverable || relationEditor.current?.dirty()) setClosing(true); else onClose(); };
+  const requestClose = () => { if (isDirty(draftRef.current) || recoverable || relationEditor.current?.dirty() || exchangeEditor.current?.dirty()) setClosing(true); else finishClose(); };
   handle.current = { requestClose };
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => { if (isDirty(draftRef.current)) event.preventDefault(); };
@@ -92,24 +99,33 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     setMessage("");
   };
   const save = async (closeAfter = false) => {
-    if (inFlight.current || recoverable || !recoveryChecked || conflict) return;
+    if (inFlight.current || exchangeEditor.current?.busy() || recoverable || !recoveryChecked || conflict) return;
+    let exchangeConfirmed = false;
     let relationConfirmed = false;
     const validateCurrent = () => {
       const current = draftRef.current;
       const parsed = contactEditorSchema(current.base).safeParse(current.values);
       if (!parsed.success) {
+        clearNavigation();
+        if (exchangeConfirmed) setMessage("L’échange est enregistré. Corrigez les informations du contact avant de les enregistrer.");
         form.clearErrors();
         for (const issue of parsed.error.issues) {
           const field = CONTACT_FIELDS.find(field => issue.path.includes(field));
           if (field) form.setError(field, { type: "validation", message: issue.message });
         }
         const first = CONTACT_FIELDS.find(field => parsed.error.issues.some(issue => issue.path.includes(field))) ?? "first_name";
-        if (closing) { invalidFocusAfterClose.current = first; setClosing(false); onCancelClose(); }
+        if (closing) { invalidFocusAfterClose.current = first; setClosing(false); clearNavigation(); }
         else requestAnimationFrame(() => focusField(first));
         return false;
       }
       return true;
     };
+    if (closeAfter && exchangeEditor.current?.dirty()) {
+      if (!exchangeEditor.current.hasPending() && !validateCurrent()) return;
+      const confirmed = await exchangeEditor.current.save();
+      if (!confirmed) { setClosing(false); clearNavigation(); return; }
+      exchangeConfirmed = true;
+    }
     // Exact pending contact retries run first. A pending relation can also be
     // confirmed unchanged, but a fresh relation requires valid contact fields.
     if (!draftRef.current.pending) {
@@ -118,7 +134,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         inFlight.current = true; setSaving(true);
         const relationSaved = await relationEditor.current.save();
         inFlight.current = false; if (!active.current) return; setSaving(false);
-        if (!relationSaved) { setClosing(false); onCancelClose(); return; }
+        if (!relationSaved) { setClosing(false); clearNavigation(); return; }
         relationConfirmed = true;
       }
       if (!validateCurrent()) {
@@ -128,8 +144,8 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     }
     const current = draftRef.current;
     const closeIfClean = () => {
-      if (!isDirty(draftRef.current) && !relationEditor.current?.dirty()) onClose();
-      else { setClosing(false); onCancelClose(); }
+      if (!isDirty(draftRef.current) && !relationEditor.current?.dirty() && !exchangeEditor.current?.dirty()) finishClose();
+      else { setClosing(false); clearNavigation(); }
     };
     if (!isDirty(current)) { if (closeAfter) closeIfClean(); return; }
     const command = makeCommand(current);
@@ -155,8 +171,9 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
       update(next);
       onSaved(result.contact);
       setMessage(isDirty(next) ? "Enregistrement confirmé. Votre nouvelle saisie reste à enregistrer." : "Contact enregistré.");
-      if (closeAfter && !isDirty(next) && !relationEditor.current?.dirty()) onClose(); else { setClosing(false); onCancelClose(); }
+      if (closeAfter && !isDirty(next) && !relationEditor.current?.dirty() && !exchangeEditor.current?.dirty()) finishClose(); else { setClosing(false); clearNavigation(); }
     } else if (result.status === "unauthenticated" || result.status === "forbidden") {
+      clearNavigation();
       window.dispatchEvent(new Event("crm-session-denied"));
     } else {
       // An unavailable response may hide a committed transaction: keep its key.
@@ -168,8 +185,8 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         else requestAnimationFrame(() => focusField(field));
       }
       if (result.status === "conflict") { setConflict(result); setConflictChoices({}); }
-      setMessage(`${relationConfirmed ? "La société est enregistrée. Les informations du contact ne sont pas confirmées. " : ""}${result.message}`);
-      setClosing(false); onCancelClose();
+      setMessage(`${exchangeConfirmed ? "L’échange est enregistré. Les informations du contact ne sont pas confirmées. " : ""}${relationConfirmed ? "La société est enregistrée. Les informations du contact ne sont pas confirmées. " : ""}${result.message}`);
+      setClosing(false); clearNavigation();
     }
   };
   const resolveConflict = () => {
@@ -182,10 +199,10 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     update({ ...current, base: conflict.contact, values, pending: null, generation: current.generation + 1 });
     setConflict(null); setConflictChoices({}); setMessage("Choix préparés. Enregistrez pour confirmer vos changements.");
   };
-  const cancelClose = () => { setClosing(false); onCancelClose(); };
+  const cancelClose = () => { pendingExchangeHref.current = null; setClosing(false); clearNavigation(); };
   return <>
     {recoverable ? <div className="mx-5 rounded-md border p-4" role="status"><p className="font-medium">Une saisie est à reprendre</p><p className="mt-1 text-sm text-muted-foreground">Retrouvez le texte et les versions conservés dans cet onglet.</p><div className="mt-3 flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => { update(connectLegacyDraft(recoverable, contact)); setRecoverable(null); setMessage(recoverable.pending ? "Une commande attend sa confirmation. Réessayez avant tout nouvel enregistrement." : "Brouillon repris."); }}>Reprendre la saisie</Button><Button className="min-h-11" variant="outline" onClick={() => { removeDraft(ownerId, recoverable.target); setRecoverable(null); }}>Abandonner le brouillon</Button></div></div> : null}
-    <form className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5" onSubmit={(event) => { event.preventDefault(); save().catch(() => setMessage("Enregistrement indisponible. Votre saisie est conservée.")); }} aria-busy={saving}>
+    <form className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5" onSubmit={(event) => { event.preventDefault(); save().catch(() => { clearNavigation(); setMessage("Enregistrement indisponible. Votre saisie est conservée."); }); }} aria-busy={saving}>
       <fieldset className="space-y-5" disabled={Boolean(recoverable) || !recoveryChecked}>
         {CONTACT_FIELDS.map(field => {
           const label = FIELD_LABELS[field];
@@ -208,15 +225,17 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         })}
       </fieldset>
       {contact ? <ContactCompanyEditor ownerId={ownerId} contactId={contact.id} handle={relationEditor} /> : null}
+      {contact ? <><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setExchangeSaving} /><ExchangeHistory contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
       <p id="contact-help" className="text-xs text-muted-foreground">Un prénom ou un nom suffit. Enregistrez pour confirmer vos changements.</p>
       {storageError ? <p role="alert" className="text-sm text-destructive">Le stockage de cet onglet est indisponible. Gardez cette page ouverte jusqu’à confirmation.</p> : null}
       {message ? <p role="status" aria-live="polite" className="text-sm" data-contact-message>{message}</p> : null}
       {conflict ? <div className="space-y-3 rounded-md border p-4" role="alert"><p className="font-medium">Cette fiche a changé ailleurs</p>{conflict.fields.map(field => <div key={field} className="space-y-2" data-conflict-field={field}><p className="break-words text-sm">{FIELD_LABELS[field]} enregistré : <strong className="whitespace-pre-wrap">{conflict.contact[field] || "Vide"}</strong></p><div className="flex flex-wrap gap-2"><Button type="button" variant={conflictChoices[field] === "mine" ? "default" : "outline"} aria-pressed={conflictChoices[field] === "mine"} className="h-auto min-h-11 whitespace-normal" onClick={() => setConflictChoices(choices => ({ ...choices, [field]: "mine" }))}>Garder ma saisie pour {FIELD_LABELS[field]}</Button><Button type="button" variant={conflictChoices[field] === "server" ? "default" : "outline"} aria-pressed={conflictChoices[field] === "server"} className="h-auto min-h-11 whitespace-normal" onClick={() => setConflictChoices(choices => ({ ...choices, [field]: "server" }))}>Utiliser la version enregistrée pour {FIELD_LABELS[field]}</Button></div></div>)}<Button type="button" className="h-auto min-h-11 whitespace-normal" disabled={conflict.fields.some(field => !conflictChoices[field])} onClick={resolveConflict}>Préparer ces choix</Button></div> : null}
-      <div className="mt-auto flex flex-wrap gap-2 border-t pt-4"><Button type="submit" className="min-h-11" disabled={saving || Boolean(recoverable) || Boolean(conflict)}>{saving ? "Enregistrement…" : draft.pending ? "Réessayer la confirmation" : draft.base ? "Enregistrer" : "Ajouter"}</Button><Button type="button" variant="outline" className="min-h-11" onClick={requestClose}>Annuler</Button></div>
+      <div className="mt-auto flex flex-wrap gap-2 border-t pt-4"><Button type="submit" className="min-h-11" disabled={saving || exchangeSaving || Boolean(recoverable) || Boolean(conflict)}>{saving ? "Enregistrement…" : draft.pending ? "Réessayer la confirmation" : draft.base ? "Enregistrer" : "Ajouter"}</Button><Button type="button" variant="outline" className="min-h-11" onClick={requestClose}>Annuler</Button></div>
     </form>
     <Dialog open={closing} onOpenChange={(open) => { if (open) setClosing(true); else cancelClose(); }}><DialogContent ref={closeDialogRef} tabIndex={-1} showCloseButton={false} onCloseAutoFocus={(event) => {
       const field = invalidFocusAfterClose.current;
       if (field) { event.preventDefault(); invalidFocusAfterClose.current = null; focusField(field); }
-    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => setMessage("Enregistrement indisponible.")); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving} onClick={() => { relationEditor.current?.discard(); removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); onClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
+      else if (exchangeEditor.current?.focusInvalid()) event.preventDefault();
+    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || exchangeSaving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => { setClosing(false); clearNavigation(); setMessage("Enregistrement indisponible."); }); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving || exchangeSaving} onClick={() => { if (inFlight.current || exchangeEditor.current?.busy()) return; exchangeEditor.current?.discard(); relationEditor.current?.discard(); removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); finishClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
   </>;
 }

@@ -1,0 +1,15 @@
+import { z } from 'zod';
+export const exchangeChannelSchema=z.enum(['phone','email','video','other']);
+export const EXCHANGE_CHANNEL_LABELS={phone:'Téléphone',email:'E-mail',video:'Visio',other:'Autre'} as const;
+const notes=z.string().refine(v=>!/[\u0000\uD800-\uDFFF]/u.test(v),'Caractère non pris en charge.').refine(v=>Array.from(v).length<=20000,'Maximum 20 000 caractères.');
+export const exchangeFieldsSchema=z.object({contact_id:z.uuid(),company_id:z.uuid().nullable(),occurred_at:z.iso.datetime({offset:true}),channel:exchangeChannelSchema,notes}).strict();
+export const exchangeCommandSchema=z.object({operation:z.literal('create'),command_id:z.uuid(),fields:exchangeFieldsSchema}).strict();
+const version=z.number().int().positive();
+export const exchangeSchema=exchangeFieldsSchema.extend({contact_name:z.string().nullable().optional(),company_name:z.string().nullable().optional(),id:z.uuid(),created_at:z.string(),updated_at:z.string(),revision:version,field_versions:z.object({contact_id:version,company_id:version,occurred_at:version,channel:version,notes:version}).strict()});
+export const exchangeFailureSchema=z.object({status:z.enum(['validation','unauthenticated','forbidden','not_found','unavailable']),message:z.string(),field:z.enum(['occurred_at','channel','notes','contact_id','company_id']).optional()});
+export const exchangeResultSchema=z.union([z.object({status:z.literal('success'),exchange:exchangeSchema}),exchangeFailureSchema]);
+export const exchangesPageSchema=z.union([z.object({status:z.literal('success'),exchanges:z.array(exchangeSchema),total:z.number().int().nonnegative(),page:version,last_interaction:exchangeSchema.nullable()}),exchangeFailureSchema]);
+export type Exchange=z.infer<typeof exchangeSchema>;
+export type ExchangeCommand=z.infer<typeof exchangeCommandSchema>;
+export type ExchangeResult=z.infer<typeof exchangeResultSchema>;
+export type ExchangesPage=z.infer<typeof exchangesPageSchema>;

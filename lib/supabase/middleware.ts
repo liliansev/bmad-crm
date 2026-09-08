@@ -24,7 +24,7 @@ export async function updateSession(request: NextRequest) {
   const isOwner = !error && data.user?.id === env.SUPABASE_OWNER_ID;
   const publicPath = ["/connexion", "/mot-de-passe-oublie", "/reinitialiser"].includes(request.nextUrl.pathname);
   const sessionPath = request.nextUrl.pathname === "/api/session";
-  const dataPath = ["/api/contacts", "/api/companies"].some(path => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`));
+  const dataPath = ["/api/contacts", "/api/companies", "/api/exchanges"].some(path => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`));
   const unavailable = !!error && (error.status === undefined || error.status >= 500);
 
   if (!isOwner && !unavailable) {

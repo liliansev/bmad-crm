@@ -27,7 +27,11 @@ export async function readContacts(page: number): Promise<ContactsPage> {
     if (auth.status !== "success") return auth;
     const { data, error, count } = await auth.client.from("contacts").select(`${columns},company:companies!contacts_company_owner_fk(id,name)`, { count: "exact" }).order("last_name").order("first_name").order("id").range((page - 1) * CONTACT_PAGE_SIZE, page * CONTACT_PAGE_SIZE - 1);
     if (error || count === null) return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." };
-    return { status: "success", contacts: z.array(z.unknown()).parse(data).map(value => contactSummarySchema.parse(projectContact(value))), total: count, page };
+    const contacts = z.array(z.unknown()).parse(data).map(value => contactSummarySchema.parse(projectContact(value)));
+    const projection = await auth.client.rpc("contacts_last_interactions", { p_ids: contacts.map(contact => contact.id) });
+    if (projection.error) return { status: "unavailable", message: "Impossible de charger les dernières interactions. Réessayez." };
+    const dates = z.record(z.uuid(), z.string().nullable()).parse(projection.data);
+    return { status: "success", contacts: contacts.map(contact => ({ ...contact, last_interaction: dates[contact.id] ?? null })), total: count, page };
   } catch { return { status: "unavailable", message: "Impossible de charger les contacts. Réessayez." }; }
 }
 

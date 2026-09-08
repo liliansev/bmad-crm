@@ -31,7 +31,7 @@ export const detailsVersionsSchema = fieldVersionsSchema.omit({ first_name: true
 // rendered links separately require linkedinSchema, never this storage schema.
 const storedLinkedinSchema = bounded(2048).refine(value => value === "" || /^https?:\/\//i.test(value), "Protocole du lien stocké non valide.");
 export const contactSchema = storedFieldsSchema.extend({ linkedin_url: storedLinkedinSchema, id: z.uuid(), field_versions: fieldVersionsSchema, revision: version, created_at: z.string(), updated_at: z.string() });
-export const contactSummarySchema = contactSchema.omit({ notes: true }).extend({ company: z.object({ id: z.uuid(), name: z.string() }).nullable().optional() });
+export const contactSummarySchema = contactSchema.omit({ notes: true }).extend({ last_interaction: z.string().nullable().optional(), company: z.object({ id: z.uuid(), name: z.string() }).nullable().optional() });
 const patchSchema = contactFieldsSchema.partial().refine(v => Object.keys(v).length > 0, "Aucun champ modifié.");
 export const contactCommandSchema = z.discriminatedUnion("operation", [
   z.object({ version: z.literal(2), operation: z.literal("create"), command_id: z.uuid(), fields: contactNamesSchema }).strict(),
