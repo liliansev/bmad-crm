@@ -11,27 +11,131 @@ export function createOpportunityStore(ownerId:string,onConfirmed:(opportunity:O
  const persist=(entry:Entry,draft:OpportunityDraft)=>{let storageError=false,cleanupBlocked=entry.state.cleanupBlocked;if(opportunityDirty(draft))storageError=!writeOpportunityDraft(ownerId,draft);else {cleanupBlocked=!removeOpportunityDraft(ownerId,draft.target);storageError=cleanupBlocked;}emit(entry,{draft,storageError:storageError||cleanupBlocked,cleanupBlocked});};
  const ensure=(target:string,base:Opportunity|null,context:OpportunityContext={})=>{let entry=entries.get(target)??[...entries.values()].find(entry=>entry.state.draft.base?.id===target);if(entry&&base===null&&target.startsWith('new')&&entry.state.draft.base&&!entry.state.busy&&!opportunityDirty(entry.state.draft)&&!entry.state.cleanupBlocked)entry=undefined;if(!entry){const draft=readOpportunityDraft(ownerId,target)??freshOpportunityDraft(target,base,context);entry={state:{draft,busy:false,message:'',errors:{},storageError:false,cleanupBlocked:false,conflict:null},listeners:new Set(),queue:new Set(),running:null};}entries.set(target,entry);return entry;};
  const denied=(status:string)=>{if(status==='unauthenticated'||status==='forbidden'){allowed=false;window.dispatchEvent(new Event('crm-session-denied'));return true;}return false;};
- const process=async(entry:Entry):Promise<boolean>=>{
-  while(entry.queue.size||entry.state.draft.pending){if(!allowed||entry.state.conflict)return false;const requested=[...entry.queue],requestedGenerations={...entry.state.draft.generations};const resuming=Boolean(entry.state.draft.pending);entry.queue.clear();let pending=entry.state.draft.pending;
-   if(!pending){let command;try{command=makeOpportunityCommand(entry.state.draft,requested);}catch(error){const first=error instanceof OpportunityInputError?error.field:requested.find(field=>changedOpportunityFields(entry.state.draft).includes(field))??'title';emit(entry,{errors:{[first]:error instanceof Error?error.message:'Valeur invalide.'},message:'Corrigez le champ indiqué. Votre saisie est conservée.'});entry.queue.clear();return false;}if(!command){if(entry.state.cleanupBlocked&&!removeOpportunityDraft(ownerId,entry.state.draft.target)){emit(entry,{message:'Brouillon non effacé du stockage. Gardez la fiche ouverte.'});return false;}emit(entry,{cleanupBlocked:false,storageError:false});continue;}
-    if(command.operation==='update'&&requested.includes('stage')&&changedOpportunityFields(entry.state.draft).includes('stage'))entry.queue.add('stage');
-    pending={command,generations:{...entry.state.draft.generations}};persist(entry,{...entry.state.draft,pending});
-   }
-   emit(entry,{busy:true,message:'Enregistrement…',errors:{}});const result=await transport.send(pending.command);
-   if(result.status==='success')window.dispatchEvent(new Event('crm-data-changed'));
-   if(!allowed)return false;if(denied(result.status))return false;
-   if(result.status!=='success'){
-    if(result.status!=='unavailable')persist(entry,{...entry.state.draft,pending:null});
-    emit(entry,{message:result.message,conflict:result.status==='conflict'?{...result,conflicting_fields:result.conflicting_fields??commandOpportunityFields(pending.command)}:null,errors:result.status==='validation'&&result.field?{[result.field]:result.message}:{}});entry.queue.clear();return false;
-   }
-   const receipt=pending.confirmed??result.opportunity;persist(entry,{...entry.state.draft,pending:{...pending,confirmed:receipt}});
-   const read=await transport.read(receipt.id);if(!allowed)return false;if(denied(read.status))return false;if(read.status!=='success'){emit(entry,{message:'Commande reçue. Relecture indisponible ; réessayez la confirmation.'});entry.queue.clear();return false;}
-   const next=acknowledgeOpportunity(entry.state.draft,receipt,read.opportunity);
-   if(!opportunityDirty(next)&&!removeOpportunityDraft(ownerId,next.target)){emit(entry,{cleanupBlocked:true,storageError:true,message:'Brouillon non effacé du stockage. Réessayez la confirmation.'});entry.queue.clear();return false;}
-   persist(entry,next);if(resuming)for(const field of changedOpportunityFields(next)){if(requested.includes(field)&&next.generations[field]<=requestedGenerations[field])entry.queue.add(field);}entries.set(read.opportunity.id,entry);onConfirmed(read.opportunity,next.target);window.dispatchEvent(new Event('crm-data-changed'));
-   emit(entry,{message:opportunityDirty(next)?'Enregistrement confirmé. Une nouvelle saisie reste à enregistrer.':'Opportunité enregistrée.'});
+ type PendingCommand = NonNullable<OpportunityDraft['pending']>;
+ type Preparation =
+  | {status: 'ready'; pending: PendingCommand}
+  | {status: 'unchanged'}
+  | {status: 'invalid'};
+
+ const preparePendingCommand = (entry: Entry, requested: OpportunityEditField[]): Preparation => {
+  if (entry.state.draft.pending) return {status: 'ready', pending: entry.state.draft.pending};
+
+  let command;
+  try {
+   command = makeOpportunityCommand(entry.state.draft, requested);
+  } catch (error) {
+   const field = error instanceof OpportunityInputError
+    ? error.field
+    : requested.find(field => changedOpportunityFields(entry.state.draft).includes(field)) ?? 'title';
+   emit(entry, {
+    errors: {[field]: error instanceof Error ? error.message : 'Valeur invalide.'},
+    message: 'Corrigez le champ indiqué. Votre saisie est conservée.',
+   });
+   entry.queue.clear();
+   return {status: 'invalid'};
   }
-  return !opportunityDirty(entry.state.draft)&&!entry.state.cleanupBlocked;
+
+  if (!command) {
+   if (entry.state.cleanupBlocked && !removeOpportunityDraft(ownerId, entry.state.draft.target)) {
+    emit(entry, {message: 'Brouillon non effacé du stockage. Gardez la fiche ouverte.'});
+    return {status: 'invalid'};
+   }
+   emit(entry, {cleanupBlocked: false, storageError: false});
+   return {status: 'unchanged'};
+  }
+
+  if (command.operation === 'update' && requested.includes('stage') && changedOpportunityFields(entry.state.draft).includes('stage')) {
+   entry.queue.add('stage');
+  }
+  const pending = {command, generations: {...entry.state.draft.generations}};
+  persist(entry, {...entry.state.draft, pending});
+  return {status: 'ready', pending};
+ };
+
+ const sendPendingCommand = (entry: Entry, pending: PendingCommand) => {
+  emit(entry, {busy: true, message: 'Enregistrement…', errors: {}});
+  return transport.send(pending.command);
+ };
+
+ const acceptCommandResult = (entry: Entry, pending: PendingCommand, result: OpportunityResult) => {
+  if (result.status === 'success') window.dispatchEvent(new Event('crm-data-changed'));
+  if (!allowed || denied(result.status)) return false;
+  if (result.status === 'success') return true;
+
+  if (result.status !== 'unavailable') persist(entry, {...entry.state.draft, pending: null});
+  emit(entry, {
+   message: result.message,
+   conflict: result.status === 'conflict'
+    ? {...result, conflicting_fields: result.conflicting_fields ?? commandOpportunityFields(pending.command)}
+    : null,
+   errors: result.status === 'validation' && result.field ? {[result.field]: result.message} : {},
+  });
+  entry.queue.clear();
+  return false;
+ };
+
+ const readSavedOpportunity = (entry: Entry, pending: PendingCommand, receipt: Opportunity) => {
+  persist(entry, {...entry.state.draft, pending: {...pending, confirmed: receipt}});
+  return transport.read(receipt.id);
+ };
+
+ const confirmSavedOpportunity = (
+  entry: Entry,
+  receipt: Opportunity,
+  actual: Opportunity,
+  resuming: boolean,
+  requested: OpportunityEditField[],
+  requestedGenerations: OpportunityDraft['generations'],
+ ) => {
+  const next = acknowledgeOpportunity(entry.state.draft, receipt, actual);
+  if (!opportunityDirty(next) && !removeOpportunityDraft(ownerId, next.target)) {
+   emit(entry, {cleanupBlocked: true, storageError: true, message: 'Brouillon non effacé du stockage. Réessayez la confirmation.'});
+   entry.queue.clear();
+   return false;
+  }
+
+  persist(entry, next);
+  if (resuming) {
+   for (const field of changedOpportunityFields(next)) {
+    if (requested.includes(field) && next.generations[field] <= requestedGenerations[field]) entry.queue.add(field);
+   }
+  }
+  entries.set(actual.id, entry);
+  onConfirmed(actual, next.target);
+  window.dispatchEvent(new Event('crm-data-changed'));
+  emit(entry, {message: opportunityDirty(next)
+   ? 'Enregistrement confirmé. Une nouvelle saisie reste à enregistrer.'
+   : 'Opportunité enregistrée.'});
+  return true;
+ };
+
+ const process = async (entry: Entry): Promise<boolean> => {
+  while (entry.queue.size || entry.state.draft.pending) {
+   if (!allowed || entry.state.conflict) return false;
+   const requested = [...entry.queue];
+   const requestedGenerations = {...entry.state.draft.generations};
+   const resuming = Boolean(entry.state.draft.pending);
+   entry.queue.clear();
+
+   const prepared = preparePendingCommand(entry, requested);
+   if (prepared.status === 'invalid') return false;
+   if (prepared.status === 'unchanged') continue;
+   const {pending} = prepared;
+
+   const result = await sendPendingCommand(entry, pending);
+   if (!acceptCommandResult(entry, pending, result) || result.status !== 'success') return false;
+
+   const receipt = pending.confirmed ?? result.opportunity;
+   const read = await readSavedOpportunity(entry, pending, receipt);
+   if (!allowed || denied(read.status)) return false;
+   if (read.status !== 'success') {
+    emit(entry, {message: 'Commande reçue. Relecture indisponible ; réessayez la confirmation.'});
+    entry.queue.clear();
+    return false;
+   }
+   if (!confirmSavedOpportunity(entry, receipt, read.opportunity, resuming, requested, requestedGenerations)) return false;
+  }
+  return !opportunityDirty(entry.state.draft) && !entry.state.cleanupBlocked;
  };
  const save=(target:string,fields:OpportunityEditField[]=OPPORTUNITY_EDIT_FIELDS):Promise<boolean>=>{const entry=entries.get(target);if(!entry||!allowed)return Promise.resolve(false);fields.forEach(field=>entry.queue.add(field));if(entry.running)return entry.running;entry.running=process(entry).catch(()=>{entry.queue.clear();emit(entry,{message:'Confirmation indisponible. Votre saisie est conservée.'});return false;}).finally(()=>{entry.running=null;emit(entry,{busy:false});});return entry.running;};
  return {ownerId,ensure:(target:string,base:Opportunity|null,context?:OpportunityContext)=>ensure(target,base,context).state,get:(target:string)=>entries.get(target)!.state,subscribe:(target:string,listener:()=>void)=>{const entry=entries.get(target)!;entry.listeners.add(listener);return()=>{entry.listeners.delete(listener);};},
