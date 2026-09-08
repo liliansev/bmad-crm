@@ -30,10 +30,33 @@ export function revalidateOpportunity(draft:OpportunityDraft,actual:Opportunity)
  for(const field of protectedFields){Object.assign(next.values,{[field]:draft.values[field]});Object.assign(next.base,{[field]:draft.base[field]});if(field==='stage')next.base.workflow_revision=draft.base.workflow_revision;else next.base.field_versions[field]=draft.base.field_versions[field];}return next;
 }
 export class OpportunityInputError extends Error {constructor(public field:OpportunityEditField,message:string){super(message);}}
-function parseField(field:OpportunityField,draft:OpportunityDraft){try{const value=field==='amount_cents'?decimalToCents(draft.values.amount_cents):draft.values[field];return opportunityFieldsSchema.shape[field].parse(value);}catch(error){throw new OpportunityInputError(field,error instanceof z.ZodError?error.issues[0]?.message??'Valeur invalide.':error instanceof Error?error.message:'Valeur invalide.');}}
+function parseField(field: OpportunityField, draft: OpportunityDraft) {
+  try {
+    const value = field === 'amount_cents'
+      ? decimalToCents(draft.values.amount_cents)
+      : draft.values[field];
+    return opportunityFieldsSchema.shape[field].parse(value);
+  } catch (error) {
+    const message = error instanceof z.ZodError
+      ? error.issues[0]?.message ?? 'Valeur invalide.'
+      : error instanceof Error ? error.message : 'Valeur invalide.';
+    throw new OpportunityInputError(field, message);
+  }
+}
+
+function makeCreateOpportunityCommand(
+  draft: OpportunityDraft,
+): Extract<OpportunityCommand, {operation: 'create'}> {
+  const values = Object.fromEntries(
+    OPPORTUNITY_FIELDS.map(field => [field, parseField(field, draft)]),
+  );
+  const fields = opportunityFieldsSchema.parse(values);
+  return {operation: 'create', command_id: crypto.randomUUID(), fields};
+}
+
 export function makeOpportunityCommand(draft:OpportunityDraft,requested:OpportunityEditField[]):OpportunityCommand|null{
  if(draft.pending)return draft.pending.command;
- if(!draft.base){const fields=opportunityFieldsSchema.parse(Object.fromEntries(OPPORTUNITY_FIELDS.map(field=>[field,parseField(field,draft)])));return {operation:'create',command_id:crypto.randomUUID(),fields};}
+ if(!draft.base)return makeCreateOpportunityCommand(draft);
  const changed=changedOpportunityFields(draft).filter(field=>requested.includes(field));if(!changed.length)return null;
  const first=changed[0];if(first==='stage')return {operation:'transition',command_id:crypto.randomUUID(),opportunity_id:draft.base.id,stage:draft.values.stage,base_workflow_revision:draft.base.workflow_revision};
  const fields:Extract<OpportunityCommand,{operation:'update'}>['fields']={},base_versions:Partial<Record<OpportunityField,number>>={};for(const field of changed.filter((field):field is OpportunityField=>field!=='stage')){Object.assign(fields,{[field]:parseField(field,draft)});base_versions[field]=draft.base.field_versions[field];}return {operation:'update',command_id:crypto.randomUUID(),opportunity_id:draft.base.id,fields,base_versions};
