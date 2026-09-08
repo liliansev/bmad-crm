@@ -1,5 +1,7 @@
 # BMAD 06 — Point de départ du tournage
 
+> Extension en cours depuis le nouveau mandat du 8 septembre : terminer toute la V1 avant cette reprise. Le bilan ci-dessous décrit le précédent checkpoint Contacts ; il sera remplacé après les stories 2.3–3.8. Il ne constitue plus le périmètre final demandé. Voir [mandat courant](mandat-v1-avant-bmad06.md).
+
 Préparé le 8 septembre 2026 à partir de [la leçon Notion](https://app.notion.com/p/3ce5d2efba7f81f38e1be514e6cc311f), consultée à cette date. Arrêt au démarrage : inventaire de dette, refactoring, build de livraison et déploiement restent à faire pendant BMAD 06.
 
 ## État disponible

@@ -16,7 +16,7 @@ Fournir un carnet de relations indépendant du pipeline : contacts, sociétés, 
 
 ## Requirements & Constraints
 
-- Un contact requiert un prénom ou un nom non vide après trim. E-mail, titre professionnel, LinkedIn et note sont facultatifs ; zéro ou une société actuelle. Société : nom obligatoire uniquement. Aucun téléphone, photo, enrichissement ou e-mail supplémentaire.
+- Un contact requiert un prénom ou un nom non vide après trim. Les nouvelles valeurs de noms refusent les chiffres décimaux Unicode Nd ; les noms historiques non modifiés et reçus confirmés restent intacts. E-mail, titre professionnel, LinkedIn et note sont facultatifs ; zéro ou une société actuelle. Société : nom obligatoire uniquement. Aucun téléphone, photo, enrichissement ou e-mail supplémentaire.
 - E-mail : trim, validation syntaxique bloquante et erreur près du champ ; doublons insensibles à la casse signalés sans interdire la sauvegarde ni fusionner. LinkedIn : URL absolue HTTP(S), ouverture externe protégée ; aucune action si vide.
 - Les notes du contact sont indépendantes des échanges et ne changent jamais la dernière interaction. Un changement de société ne déplace aucun échange historique et ne supprime aucune fiche.
 - Un échange de cet epic conserve au moins son contact, sa date/heure, son canal explicitement choisi (Téléphone, E-mail, Visio, Autre), ses notes facultatives et sa société historique facultative. Celle-ci est préremplie depuis le contact puis librement corrigible ou retirable. Date initiale : maintenant Paris ; date future refusée côté serveur. Heure locale inexistante refusée ; heure ambiguë résolue par choix explicite de l’occurrence et du décalage UTC.
@@ -46,3 +46,5 @@ Fournir un carnet de relations indépendant du pipeline : contacts, sociétés, 
 L’accès privé de l’epic 1 précède les écritures. La chaîne 2.1 → 2.2 → 2.3 → 2.4 → 2.5 étend les mêmes garanties de sécurité, concurrence et reprise. L’epic 3 ajoutera opportunités, leurs relations et agrégats ; l’annuaire ne doit pas en dépendre.
 
 Chaque story exige TypeScript et parcours agent-browser sur données fictives : persistance, reconnexion, droits RLS/RPC, retries, conflits, pagination, erreurs et clavier. Mesurer réaction <100 ms, vues <2 s et confirmation <1 s dans 19 essais sur 20, sans relâcher la fluidité des panneaux/éditeurs ; consigner les conditions. Vérifier cible et plan avant opération distante ; aucun déploiement implicite.
+
+Le mandat `mandat-v1-avant-bmad06.md` autorise la réalisation autonome des stories restantes, leurs migrations additives et recettes isolées ; il conserve le déploiement frontend et le lot final de refactorisation pour BMAD 06. Ne pas rouvrir les confirmations déléguées.

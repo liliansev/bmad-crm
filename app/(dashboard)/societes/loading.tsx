@@ -1,0 +1,2 @@
+import { Skeleton } from '@/components/ui/skeleton';
+export default function Loading(){return <div className="space-y-6" role="status" aria-label="Chargement des sociétés"><div className="flex justify-between gap-4"><div className="space-y-3"><Skeleton className="h-8 w-40"/><Skeleton className="h-5 w-64"/></div><Skeleton className="h-11 w-40"/></div><Skeleton className="h-8 w-28"/><div className="space-y-1">{Array.from({length:10},(_,i)=><Skeleton key={i} className="h-12 w-full"/>)}</div></div>;}

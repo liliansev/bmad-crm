@@ -11,9 +11,12 @@ import { fetchEmailDuplicates, sendContactCommand } from "@/lib/contacts-transpo
 import { CONTACT_FIELDS, FIELD_LABELS, FIELD_LIMITS, canonicalField, emailSchema, linkedinSchema, contactEditorSchema, type DuplicatesResult, type Contact, type ContactFields, type ContactResult } from "@/lib/validations/contacts";
 import { connectLegacyDraft, acknowledge, freshDraft, isDirty, makeCommand, readDraft, removeDraft, writeDraft, type ContactDraft } from "@/lib/contacts-drafts";
 
+import { ContactCompanyEditor, type CompanyEditorHandle } from "./contact-company-editor";
+
 export type EditorHandle = { requestClose: () => void };
 type Props = { ownerId: string; target: string; contact: Contact | null; handle: React.RefObject<EditorHandle | null>; onSaved: (contact: Contact) => void; onClose: () => void; onCancelClose: () => void };
 export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClose, onCancelClose }: Props) {
+  const relationEditor = useRef<CompanyEditorHandle | null>(null);
   const [draft, setDraft] = useState(() => freshDraft(target, contact));
   const draftRef = useRef(draft);
   const [recoverable, setRecoverable] = useState<ContactDraft | null>(null);
@@ -77,7 +80,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     }, 350);
     return () => { current = false; clearTimeout(timer); };
   }, [draft.values.email, draft.base?.id, draft.base?.revision, contact?.revision, duplicatePage, duplicateRetry, recoverable, recoveryChecked]);
-  const requestClose = () => { if (isDirty(draftRef.current) || recoverable) setClosing(true); else onClose(); };
+  const requestClose = () => { if (isDirty(draftRef.current) || recoverable || relationEditor.current?.dirty()) setClosing(true); else onClose(); };
   handle.current = { requestClose };
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => { if (isDirty(draftRef.current)) event.preventDefault(); };
@@ -90,8 +93,9 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
   };
   const save = async (closeAfter = false) => {
     if (inFlight.current || recoverable || !recoveryChecked || conflict) return;
-    const current = draftRef.current;
-    if (!current.pending) {
+    let relationConfirmed = false;
+    const validateCurrent = () => {
+      const current = draftRef.current;
       const parsed = contactEditorSchema(current.base).safeParse(current.values);
       if (!parsed.success) {
         form.clearErrors();
@@ -102,13 +106,35 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         const first = CONTACT_FIELDS.find(field => parsed.error.issues.some(issue => issue.path.includes(field))) ?? "first_name";
         if (closing) { invalidFocusAfterClose.current = first; setClosing(false); onCancelClose(); }
         else requestAnimationFrame(() => focusField(first));
+        return false;
+      }
+      return true;
+    };
+    // Exact pending contact retries run first. A pending relation can also be
+    // confirmed unchanged, but a fresh relation requires valid contact fields.
+    if (!draftRef.current.pending) {
+      if (!relationEditor.current?.hasPending() && !validateCurrent()) return;
+      if (relationEditor.current?.dirty()) {
+        inFlight.current = true; setSaving(true);
+        const relationSaved = await relationEditor.current.save();
+        inFlight.current = false; if (!active.current) return; setSaving(false);
+        if (!relationSaved) { setClosing(false); onCancelClose(); return; }
+        relationConfirmed = true;
+      }
+      if (!validateCurrent()) {
+        if (relationConfirmed) setMessage("La société est enregistrée. Corrigez les informations du contact avant de les enregistrer.");
         return;
       }
     }
-    if (!isDirty(current)) { if (closeAfter) onClose(); return; }
+    const current = draftRef.current;
+    const closeIfClean = () => {
+      if (!isDirty(draftRef.current) && !relationEditor.current?.dirty()) onClose();
+      else { setClosing(false); onCancelClose(); }
+    };
+    if (!isDirty(current)) { if (closeAfter) closeIfClean(); return; }
     const command = makeCommand(current);
     if (command.operation === "update" && Object.keys(command.fields).length === 0 && !current.pending) {
-      update(freshDraft(current.target, current.base)); setMessage("Aucune modification à enregistrer."); if (closeAfter) onClose(); return;
+      update(freshDraft(current.target, current.base)); setMessage("Aucune modification à enregistrer."); if (closeAfter) closeIfClean(); return;
     }
     const pending = current.pending ?? { command, generation: current.generation, values: { ...current.values } };
     update({ ...current, pending });
@@ -129,7 +155,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
       update(next);
       onSaved(result.contact);
       setMessage(isDirty(next) ? "Enregistrement confirmé. Votre nouvelle saisie reste à enregistrer." : "Contact enregistré.");
-      if (closeAfter && !isDirty(next)) onClose(); else { setClosing(false); onCancelClose(); }
+      if (closeAfter && !isDirty(next) && !relationEditor.current?.dirty()) onClose(); else { setClosing(false); onCancelClose(); }
     } else if (result.status === "unauthenticated" || result.status === "forbidden") {
       window.dispatchEvent(new Event("crm-session-denied"));
     } else {
@@ -142,7 +168,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         else requestAnimationFrame(() => focusField(field));
       }
       if (result.status === "conflict") { setConflict(result); setConflictChoices({}); }
-      setMessage(result.message);
+      setMessage(`${relationConfirmed ? "La société est enregistrée. Les informations du contact ne sont pas confirmées. " : ""}${result.message}`);
       setClosing(false); onCancelClose();
     }
   };
@@ -181,6 +207,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
           </div>;
         })}
       </fieldset>
+      {contact ? <ContactCompanyEditor ownerId={ownerId} contactId={contact.id} handle={relationEditor} /> : null}
       <p id="contact-help" className="text-xs text-muted-foreground">Un prénom ou un nom suffit. Enregistrez pour confirmer vos changements.</p>
       {storageError ? <p role="alert" className="text-sm text-destructive">Le stockage de cet onglet est indisponible. Gardez cette page ouverte jusqu’à confirmation.</p> : null}
       {message ? <p role="status" aria-live="polite" className="text-sm" data-contact-message>{message}</p> : null}
@@ -190,6 +217,6 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     <Dialog open={closing} onOpenChange={(open) => { if (open) setClosing(true); else cancelClose(); }}><DialogContent ref={closeDialogRef} tabIndex={-1} showCloseButton={false} onCloseAutoFocus={(event) => {
       const field = invalidFocusAfterClose.current;
       if (field) { event.preventDefault(); invalidFocusAfterClose.current = null; focusField(field); }
-    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => setMessage("Enregistrement indisponible.")); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving} onClick={() => { removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); onClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
+    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => setMessage("Enregistrement indisponible.")); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving} onClick={() => { relationEditor.current?.discard(); removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); onClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
   </>;
 }
