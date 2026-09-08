@@ -510,6 +510,9 @@ So that je conserve rapidement une nouvelle relation même avec peu d’informat
 
 **Dépendances :** epic 1 ; Q4 pour l’ouverture et le mode de sauvegarde du formulaire. Les minimums prénom ou nom sont déjà acquis ; aucun champ Q2 supplémentaire ici. Q6 avant protocole chiffré complémentaire. Cette story inclut le premier mécanisme de saisie fiable, borné à un seul domaine et deux champs métier.
 
+
+**Amendement approuvé le 8 septembre 2026 — noms sans chiffres :** toute nouvelle valeur de prénom ou nom transmise à la création ou correction refuse les chiffres décimaux Unicode (Nd), avec erreur près du champ et texte conservé. Accents, espaces, apostrophes, tirets et lettres internationales restent acceptés ; au moins un prénom ou nom après trim, maximum 200 points de code par champ. Les noms historiques non modifiés restent lisibles et ne sont pas nettoyés. Reçus confirmés rejoués sans mutation ; commandes anciennes non confirmées refusées et corrigeables. Validation formulaire, HTTP et RPC v1/v2 ; aucun autre champ modifié.
+
 ### Story 2.2: Compléter les informations et notes de mon contact
 
 As a propriétaire du CRM,
@@ -546,6 +549,9 @@ So that je retrouve le contexte utile de ma relation dans sa fiche.
 **Références :** FR-001 complément, FR-002/003/018 ; NFR-002/003/004 ; UX-DR5/14/27/30/33/34/36/37/39–44/48/56/57/59/61 et langage visuel UX-DR49–55. La note demeure un contenu de fiche, pas une colonne supplémentaire décidée pour Contacts.
 
 **Dépendances :** 2.1 ; Q2 pour les formats et doublons, Q4 pour la sauvegarde hors carte. Aucune dépendance à la société ou au journal.
+
+
+**Amendement approuvé le 8 septembre 2026 — noms sans chiffres :** toute nouvelle valeur de prénom ou nom transmise à la création ou correction refuse les chiffres décimaux Unicode (Nd), avec erreur près du champ et texte conservé. Accents, espaces, apostrophes, tirets et lettres internationales restent acceptés ; au moins un prénom ou nom après trim, maximum 200 points de code par champ. Les noms historiques non modifiés restent lisibles et ne sont pas nettoyés. Reçus confirmés rejoués sans mutation ; commandes anciennes non confirmées refusées et corrigeables. Validation formulaire, HTTP et RPC v1/v2 ; aucun autre champ modifié.
 
 ### Story 2.3: Relier mes contacts à leurs sociétés
 

@@ -1,7 +1,7 @@
 "use server";
 import { z } from "zod";
 import { contactsClient, readContact, readContacts } from "@/lib/contacts";
-import { CONTACT_FIELDS, contactCommandSchema, contactResultSchema, legacyCommandSchema, legacyResultSchema, contactsPageInputSchema, type ContactResult, type ContactReadResult, type ContactsPage } from "@/lib/validations/contacts";
+import { CONTACT_FIELDS, contactTransportCommandSchema, contactResultSchema, legacyCommandSchema, legacyResultSchema, contactsPageInputSchema, type ContactResult, type ContactReadResult, type ContactsPage } from "@/lib/validations/contacts";
 
 export async function listContactsAction(input: unknown): Promise<ContactsPage> {
   const parsed = contactsPageInputSchema.safeParse(input);
@@ -15,7 +15,7 @@ export async function getContactAction(input: unknown): Promise<ContactReadResul
 }
 export async function saveContactAction(input: unknown): Promise<ContactResult | z.infer<typeof legacyResultSchema>> {
   const isV2 = typeof input === "object" && input !== null && "version" in input;
-  const parsed = (isV2 ? contactCommandSchema : legacyCommandSchema).safeParse(input);
+  const parsed = (isV2 ? contactTransportCommandSchema : legacyCommandSchema).safeParse(input);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field = CONTACT_FIELDS.find(field => issue?.path.includes(field));

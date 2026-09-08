@@ -1,3 +1,4 @@
+import { alphabetic, fixtureMarker } from './contacts-qa-marker.mjs';
 import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -22,7 +23,7 @@ let stage = 'préparation';
 let passed = 0;
 const commands = new Set();
 const contacts = new Set();
-const marker = `QA DB fictif ${randomUUID()}`;
+const marker = fixtureMarker('QA DB fictif');
 
 function check(name, condition) {
   stage = name;
@@ -159,7 +160,7 @@ try {
   check('Contact absent distingué', (await rpc(owner, command('update', { first_name: 'Essai' }, { contact_id: randomUUID(), base_versions: { first_name: 1 } }))).status === 'not_found');
 
   // More than one page, including accents/case and UUID ties, all fictional fixtures.
-  const names = ['zèbre', 'Éclair', 'eclair', 'ALPHA', 'alpha', ...Array.from({ length: 26 }, (_, i) => `Pagination ${String(i).padStart(2, '0')}`)];
+  const names = ['zèbre', 'Éclair', 'eclair', 'ALPHA', 'alpha', ...Array.from({ length: 26 }, (_, i) => `Pagination ${alphabetic(String(i).padStart(2, '0'))}`)];
   const sortedFixtures = [];
   for (const last_name of names) {
     const created = await rpc(owner, command('create', { first_name: marker, last_name }));

@@ -1,3 +1,4 @@
+import { alphabetic, fixtureMarker } from './contacts-qa-marker.mjs';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -12,11 +13,11 @@ import { cleanupContactsQa, deleteQaAuthUser, signOutQaSession } from './contact
 const project = 'otadrkhrjxafutocstzo';
 const endpoint = `https://${project}.supabase.co`;
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
-const proof = resolve('_bmad-output/implementation-artifacts/verification/2-2');
+const proof = resolve(process.env.NAMES_PROOF_DIR || '_bmad-output/implementation-artifacts/verification/2-2');
 const manifestPath = resolve('.local/contact-details-db-cleanup.json');
 const exec = promisify(execFile);
 const fixtureIds = new Set(), commandIds = new Set(), results = [];
-const marker = `Details-DB-fictif-${randomUUID()}`;
+const marker = fixtureMarker('Details-DB-fictif');
 const empty = { first_name: '', last_name: '', email: '', job_title: '', linkedin_url: '', notes: '' };
 const names = ['first_name', 'last_name'];
 const details = ['email', 'job_title', 'linkedin_url', 'notes'];
@@ -81,6 +82,32 @@ try {
   owner=client();check('Session propriétaire réelle',!(await owner.auth.signInWithPassword({email:secret.owner_email,password:secret.owner_password})).error);
   baseline=await snapshot();
 
+  const unicodePoints=new Set([65,233,0x674e,0x639,0x10400,0x2167,0xb2]);
+  for(let cp=1;cp<0x10ffff;cp++) if(/\p{Nd}/u.test(String.fromCodePoint(cp))) {unicodePoints.add(cp-1);unicodePoints.add(cp);unicodePoints.add(cp+1);}
+  const parityRows=[...unicodePoints].map(cp=>`(${cp},${!/\p{Nd}/u.test(String.fromCodePoint(cp))})`).join(',');
+  const parity=await query(`select count(*) as tested,bool_and(private.contact_name_valid(chr(cp))=expected) as parity from (values ${parityRows}) checks(cp,expected);`);
+  check('Unicode Nd : chiffres, voisins et lettres identiques entre JS et SQL',parity[0].tested===unicodePoints.size&&parity[0].parity);
+  for (const version of [1, 2]) {
+    const original = command('create', version === 2 ? {...empty,first_name:'Historique',last_name:marker} : {first_name:'Historique',last_name:marker}, {}, version);
+    const confirmed = await rpc(original); check('Fixture historique créée',confirmed.status==='success');
+    const fixtureId=confirmed.contact.id;
+    // Simulate an exact pre-rule fixture receipt, never a preexisting business record.
+    const historical={...original,fields:{...original.fields,first_name:'Historique2'}};
+    await query(`update public.contacts set first_name='Historique2' where id=${uuidSql(fixtureId)} and owner_id=${uuidSql(secret.owner_id)};
+      update private.contact_command_receipts set command=jsonb_set(command,'{fields,first_name}','"Historique2"'), result=jsonb_set(result,'{contact,first_name}','"Historique2"') where command_id=${uuidSql(original.command_id)} and owner_id=${uuidSql(secret.owner_id)};`);
+    const before=await read(fixtureId), replay=await rpc(historical);
+    check(`v${version} reçu historique rejouable sans mutation`,replay.status==='success'&&replay.contact.first_name==='Historique2'&&JSON.stringify(await read(fixtureId))===JSON.stringify(before));
+    for (const field of names) for (const value of ['Jean2','123','ع٢','全２','𝟚']) {
+      const fields=version===2?{...empty,first_name:'Camille',last_name:marker,[field]:value}:{first_name:'Camille',last_name:marker,[field]:value};
+      const rejected=await rpc(command('create',fields,{},version));
+      check(`v${version} création ${field} chiffre refusée`,rejected.status==='validation'&&rejected.field===field);
+      const patched=await rpc(command('update',{[field]:value},{contact_id:fixtureId,base_versions:{[field]:before.field_versions[field]}},version));
+      check(`v${version} correction ${field} chiffre refusée`,patched.status==='validation'&&patched.field===field&&JSON.stringify(await read(fixtureId))===JSON.stringify(before));
+    }
+    const corrected=await rpc(command('update',{last_name:'O’Connor'},{contact_id:fixtureId,base_versions:{last_name:before.field_versions.last_name}},version));
+    check(`v${version} nom historique inchangé toléré`,corrected.status==='success'&&corrected.contact.first_name==='Historique2');
+  }
+
   const legacyCreate=command('create',{first_name:`  ${marker}  `,last_name:'Ancien client'}, {},1);
   const legacy=await rpc(legacyCreate);
   check('Client v1 : création encore acceptée',legacy.status==='success');
@@ -134,7 +161,7 @@ try {
 
   const duplicateEmail=`duplicates-${randomUUID()}@example.invalid`;
   const duplicateIds=[];
-  for(let i=0;i<27;i++){const created=await rpc(command('create',{...empty,first_name:`Fictif ${i}`,last_name:marker,email:i%2?duplicateEmail.toUpperCase():duplicateEmail}));check('Doublon autorise création indépendante',created.status==='success');duplicateIds.push(created.contact.id);}
+  for(let i=0;i<27;i++){const created=await rpc(command('create',{...empty,first_name:`Fictif ${alphabetic(i)}`,last_name:marker,email:i%2?duplicateEmail.toUpperCase():duplicateEmail}));check('Doublon autorise création indépendante',created.status==='success');duplicateIds.push(created.contact.id);}
   const duplicatePages=[];let duplicateTotal=0;
   for(let page=1;page===1||(page-1)*25<duplicateTotal;page++){const found=await duplicates(`  ${duplicateEmail.toUpperCase()}  `,null,page);check('Doublons : page globale accessible',found.status==='success');duplicateTotal=found.total;duplicatePages.push(...found.contacts);}
   check('Doublons globaux hors page : 27 fiches exactes sans fusion',duplicateTotal===27&&duplicatePages.length===27&&new Set(duplicatePages.map(row=>row.id)).size===27&&duplicateIds.every(id=>duplicatePages.some(row=>row.id===id)));

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchEmailDuplicates, sendContactCommand } from "@/lib/contacts-transport";
-import { CONTACT_FIELDS, FIELD_LABELS, FIELD_LIMITS, canonicalField, emailSchema, linkedinSchema, contactNamesSchema, type DuplicatesResult, type Contact, type ContactFields, type ContactResult } from "@/lib/validations/contacts";
+import { CONTACT_FIELDS, FIELD_LABELS, FIELD_LIMITS, canonicalField, emailSchema, linkedinSchema, contactEditorSchema, type DuplicatesResult, type Contact, type ContactFields, type ContactResult } from "@/lib/validations/contacts";
 import { connectLegacyDraft, acknowledge, freshDraft, isDirty, makeCommand, readDraft, removeDraft, writeDraft, type ContactDraft } from "@/lib/contacts-drafts";
 
 export type EditorHandle = { requestClose: () => void };
@@ -38,7 +38,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     element?.focus(); element?.scrollIntoView({ block: "nearest" });
   };
   const focusDuplicates = () => { duplicateContainerRef.current?.focus({ preventScroll: true }); };
-  const form = useForm<ContactFields>({ resolver: zodResolver(contactNamesSchema), values: draft.values });
+  const form = useForm<ContactFields>({ resolver: zodResolver(contactEditorSchema(draft.base)), values: draft.values });
   const update = (next: ContactDraft, persist = true) => {
     draftRef.current = next;
     setDraft(next);
@@ -92,7 +92,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     if (inFlight.current || recoverable || !recoveryChecked || conflict) return;
     const current = draftRef.current;
     if (!current.pending) {
-      const parsed = contactNamesSchema.safeParse(current.values);
+      const parsed = contactEditorSchema(current.base).safeParse(current.values);
       if (!parsed.success) {
         form.clearErrors();
         for (const issue of parsed.error.issues) {

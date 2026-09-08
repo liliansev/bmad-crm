@@ -1,3 +1,4 @@
+import { alphabetic, fixtureMarker } from './contacts-qa-marker.mjs';
 import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -15,7 +16,7 @@ let productFingerprint=null;
 const options={auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}};
 const proof=resolve('_bmad-output/implementation-artifacts/verification/2-2/review');
 const manifestPath=resolve('.local/contact-details-review-cleanup.json');
-const marker=`Fictif-Review-${randomUUID()}`;
+const marker=fixtureMarker('Fictif-Review');
 const empty={first_name:'',last_name:'',email:'',job_title:'',linkedin_url:'',notes:''};
 const fixtures=new Set(), commands=new Set(), results=[];
 const exec=promisify(execFile);
@@ -147,7 +148,7 @@ try{
   check('Réponse tardive A ne remplace jamais avertissement B',await evaluate(`document.querySelector('[data-contacts-duplicates]').textContent.includes('Résultat B fictif')&&!document.querySelector('[data-contacts-duplicates]').textContent.includes('Résultat A fictif')`));
   check('Revérifier disponible après recherche réussie',await evaluate(`!![...document.querySelectorAll('[data-contacts-duplicates] button')].find(el=>el.textContent.trim()==='Revérifier les doublons')`));
   const duplicateEmail=`groupe-${randomUUID()}@example.invalid`,duplicateIds=[];
-  for(let i=0;i<27;i++){const result=await create({first_name:`Pagination fictive ${String(i).padStart(2,'0')}`,email:duplicateEmail});if(result.status!=='success')throw new Error('Fixture pagination refusée');duplicateIds.push(result.contact.id);}check('27 fixtures de pagination créées',duplicateIds.length===27);
+  for(let i=0;i<27;i++){const result=await create({first_name:`Pagination fictive ${alphabetic(String(i).padStart(2,'0'))}`,email:duplicateEmail});if(result.status!=='success')throw new Error('Fixture pagination refusée');duplicateIds.push(result.contact.id);}check('27 fixtures de pagination créées',duplicateIds.length===27);
   await fill('email',duplicateEmail);check('Doublons : total 27 page initiale',await until(`document.querySelector('[data-contacts-duplicates]')?.textContent.includes('27 contacts')&&document.querySelector('[data-contacts-duplicates]')?.textContent.includes('1 / 2')`));
   await evaluate(`window.__reviewHoldPage=true;true`);await click('Doublons suivants');check('Pagination : réponse réelle page deux retenue',await until('window.__reviewPageReceived===true'));
   check('Pagination chargement : focus reste sur conteneur stable',await evaluate(`document.activeElement===document.querySelector('[data-contacts-duplicates]')&&document.activeElement.textContent.includes('Vérification des doublons…')`));

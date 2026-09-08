@@ -67,3 +67,11 @@ Les comptes/projets réels Supabase et Vercel, plan, origines autorisées et des
 ## Effet sur le workflow
 
 La délégation vaut poursuite des étapes de stories, revue finale et skill suivant sans menus de validation supplémentaires. Les contrôles sont réalisés ; seul le rituel de confirmation est remplacé par le mandat utilisateur. Un problème technique reste à corriger et une donnée externe manquante reste manquante. Aucun code, compte ou service n’est créé par cette décision documentaire.
+
+## Amendement approuvé — noms de contacts sans chiffres (2026-09-08)
+
+Autorité : plan approuvé par Lilian (« oui vasy letsgo »), spec `spec-contact-noms-sans-chiffres.md`.
+
+**Amendement approuvé le 8 septembre 2026 — noms sans chiffres :** toute nouvelle valeur de prénom ou nom transmise à la création ou correction refuse les chiffres décimaux Unicode (Nd), avec erreur près du champ et texte conservé. Accents, espaces, apostrophes, tirets et lettres internationales restent acceptés ; au moins un prénom ou nom après trim, maximum 200 points de code par champ. Les noms historiques non modifiés restent lisibles et ne sont pas nettoyés. Reçus confirmés rejoués sans mutation ; commandes anciennes non confirmées refusées et corrigeables. Validation formulaire, HTTP et RPC v1/v2 ; aucun autre champ modifié.
+
+La migration additive sur la cible existante et les recettes exactes sont autorisées ; aucun déploiement frontend ni modification des autres stories.

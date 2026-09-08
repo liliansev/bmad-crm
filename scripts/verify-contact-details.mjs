@@ -1,6 +1,7 @@
+import { alphabetic, fixtureMarker } from './contacts-qa-marker.mjs';
 import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { execFile, spawn } from 'node:child_process';
-import { promisify } from 'node:util';
+import { promisify, isDeepStrictEqual } from 'node:util';
 import { randomUUID, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
@@ -13,9 +14,9 @@ const session=`bmad-details-${Date.now()}`;
 const logicalRunId=z.uuid().parse(process.env.CRM_QA_RUN_ID??randomUUID());
 let productFingerprint=null;
 const options={auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}};
-const proof=resolve('_bmad-output/implementation-artifacts/verification/2-2');
+const proof=resolve(process.env.NAMES_PROOF_DIR || '_bmad-output/implementation-artifacts/verification/2-2');
 const manifestPath=resolve('.local/contact-details-ui-cleanup.json');
-const marker=`Fictif-Details-${randomUUID()}`;
+const marker=fixtureMarker('Fictif-Details');
 const idnaOnly=process.argv.includes('--idna-only');
 const httpOnly=process.argv.includes('--http-only');
 const reliabilityOnly=process.argv.includes('--reliability-only');
@@ -23,7 +24,7 @@ const resumeDetails=process.argv.includes('--resume-details')||reliabilityOnly;
 const empty={first_name:'',last_name:'',email:'',job_title:'',linkedin_url:'',notes:''};
 const fixtures=new Set(), commands=new Set(), results=[];
 const exec=promisify(execFile);
-let secret, owner, admin, baseline, success=false, stage='préparation', browserStarted=false;
+let secret, owner, admin, baseline, receiptBaseline, success=false, stage='préparation', browserStarted=false;
 function check(name,passed){stage=name;results.push({name,passed:!!passed});if(!passed)throw new Error(name);console.log(`PASS ${name}`);}
 async function browser(...args){stage=`navigateur ${args[0]}`;try{const {stdout}=await exec('agent-browser',['--session',session,'--json',...args],{timeout:45000,maxBuffer:5_000_000});const result=JSON.parse(stdout);if(!result.success)throw new Error();return result.data;}catch{throw new Error('Commande navigateur refusée');}}
 // All evaluation, including credentials and cookies, travels through stdin. Never log its result.
@@ -84,10 +85,61 @@ async function api(path,init){return evaluate(`fetch(${JSON.stringify(path)},${J
 async function resume(){check('Brouillon reprenable proposé',await until(`document.body.innerText.includes('Une saisie est à reprendre')`));await click('Reprendre la saisie');}
 async function injectLegacy(draft){await collect();await evaluate(`sessionStorage.removeItem(${JSON.stringify('crm:contacts:draft:v2:'+secret.owner_id+':'+draft.target)});sessionStorage.setItem(${JSON.stringify('crm:contacts:draft:v1:'+secret.owner_id+':'+draft.target)},${JSON.stringify(JSON.stringify(draft))});true`);await browser('open',`${base}/contacts?panel=${draft.target}`);check('Cible legacy ouverte',await until(`!!document.getElementById('contact-notes')`));await installTransport();await resume();}
 
+// Reuse the private management helper; SQL and credentials never enter CLI arguments.
+async function query(sql){const path=resolve('.local',`names-ui-query-${logicalRunId}.sql`);await writeFile(path,sql,{mode:0o600});try{const {stdout}=await exec('python3',['.local/supabase-query.py',path],{timeout:45000,maxBuffer:2_000_000});return JSON.parse(stdout);}finally{await rm(path,{force:true});}}
+const sqlUuid=value=>`'${z.uuid().parse(value)}'::uuid`;
+async function receiptSnapshot(){const excluded=[...commands].map(sqlUuid).join(',');return query(`select command_id::text as id,md5(to_jsonb(r)::text) as hash from private.contact_command_receipts r ${excluded?`where command_id not in (${excluded})`:''} order by command_id;`);}
+async function verifyHistoricalNames(){
+  const registry=await query(`select owner_id=${sqlUuid(secret.owner_id)} as correct from private.crm_owner where singleton;`);
+  check('Fixtures historiques : registre propriétaire confirmé',registry.length===1&&registry[0].correct);
+  for(const version of [1,2]){
+    const original={...(version===2?{version:2}:{}),operation:'create',command_id:randomUUID(),fields:version===2?{...empty,first_name:'Historique',last_name:marker}:{first_name:'Historique',last_name:marker}};
+    const result=await rpc(original);check(`Historique v${version} : fixture exacte créée`,result.status==='success');const id=result.contact.id;
+    if(!fixtures.has(id)||!commands.has(original.command_id))throw new Error('Fixture historique hors manifeste');
+    // Canonical v1 values are trimmed before fingerprinting, as in the hosted client.
+    const canonical={...original,fields:{...original.fields,first_name:'Historique2',last_name:'Ancien٣'}};
+    const expected={...result,contact:{...result.contact,first_name:'Historique2',last_name:'Ancien٣'}};
+    await query(`begin;
+      update public.contacts set first_name='Historique2',last_name='Ancien٣' where id=${sqlUuid(id)} and owner_id=${sqlUuid(secret.owner_id)};
+      update private.contact_command_receipts set command=jsonb_set(jsonb_set(command,'{fields,first_name}','"Historique2"'),'{fields,last_name}','"Ancien٣"'),result=jsonb_set(jsonb_set(result,'{contact,first_name}','"Historique2"'),'{contact,last_name}','"Ancien٣"') where command_id=${sqlUuid(original.command_id)} and owner_id=${sqlUuid(secret.owner_id)} and result->'contact'->>'id'='${z.uuid().parse(id)}';
+      commit;`);
+    const before=await read(id),countBefore=await owner.from('contacts').select('id',{head:true,count:'exact'});
+    const replay=await api('/api/contacts/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(canonical)});
+    check(`HTTP v${version} : reçu chiffré confirmé rejoué`,replay.body.status==='success'&&isDeepStrictEqual(replay.body,expected));
+    const countAfter=await owner.from('contacts').select('id',{head:true,count:'exact'});
+    check(`HTTP v${version} : rejeu sans révision ni doublon`,!countBefore.error&&!countAfter.error&&countBefore.count===countAfter.count&&JSON.stringify(await read(id))===JSON.stringify(before));
+    await browser('open',`${base}/contacts?panel=${id}`);check(`Historique v${version} : deux noms lisibles`,await until(`document.getElementById('contact-first_name')?.value==='Historique2'&&document.getElementById('contact-last_name')?.value==='Ancien٣'`));await installTransport();
+    await fill('notes','Note historique corrigée');await save();check(`Historique v${version} : note corrigée malgré les deux noms`,await saved()&&(await read(id)).notes==='Note historique corrigée');
+    await fill('first_name','Élodie');await save();check(`Historique v${version} : prénom seul corrigé`,await saved());await close();
+    await browser('open',`${base}/contacts?panel=${id}`);check(`Historique v${version} : autre nom et note conservés après rechargement`,await until(`document.getElementById('contact-first_name')?.value==='Élodie'&&document.getElementById('contact-last_name')?.value==='Ancien٣'&&document.getElementById('contact-notes')?.value==='Note historique corrigée'`));await installTransport();await close();
+    const current=(await api(`/api/contacts?version=${version}&id=${id}`)).body.contact;
+    const pendingCommand={...(version===2?{version:2}:{}),operation:'update',command_id:randomUUID(),contact_id:id,fields:{first_name:'Pending𝟚'},base_versions:{first_name:current.field_versions.first_name}};
+    commands.add(pendingCommand.command_id);await manifest();
+    const values=version===2?{...empty,first_name:current.first_name,last_name:current.last_name,email:current.email,job_title:current.job_title,linkedin_url:current.linkedin_url,notes:current.notes}:{first_name:current.first_name,last_name:current.last_name};values.first_name='Pending𝟚';
+    const draft={...(version===2?{version:2}:{}),target:id,generation:1,values,base:current,pending:{command:pendingCommand,generation:1,values:{...values}}};
+    if(version===1)await injectLegacy(draft);else{
+      await collect();await evaluate(`sessionStorage.setItem(${JSON.stringify('crm:contacts:draft:v2:'+secret.owner_id+':'+id)},${JSON.stringify(JSON.stringify(draft))});true`);
+      await browser('open',`${base}/contacts?panel=${id}`);check('Cible pending v2 ouverte',await until(`!!document.getElementById('contact-notes')`));await installTransport();await resume();
+    }
+    await save();
+    check(`Pending v${version} : refus ciblé, commande libérée et texte intact`,await until(`document.getElementById('error-first_name')?.textContent.includes('chiffres')&&document.getElementById('contact-first_name').value==='Pending𝟚'&&JSON.parse(sessionStorage.getItem(${JSON.stringify('crm:contacts:draft:v2:'+secret.owner_id+':'+id)})).pending===null`));
+    await fill('first_name','Camille');await save();check(`Pending v${version} : correction réellement persistée`,await saved()&&(await read(id)).first_name==='Camille'&&(await read(id)).last_name==='Ancien٣');await close();
+  }
+}
+
 async function verifyHttpBoundaries(){
   const created=await create({first_name:'Bornes HTTP fictives'});check('Fixture HTTP créée',created.status==='success');const id=created.contact.id;
   const row=await read(id);
   const make=(fields)=>({version:2,operation:'update',command_id:randomUUID(),contact_id:id,fields,base_versions:Object.fromEntries(Object.keys(fields).map(field=>[field,row.field_versions[field]??row.details_versions[field]]))});
+  for(const version of [1,2]) for(const field of ['first_name','last_name']) for(const value of ['Jean2','ع٢','全２','𝟚']) {
+    for(const operation of ['create','update']) {
+      const cmd=operation==='update'?make({[field]:value}):{version:2,operation:'create',command_id:randomUUID(),fields:{...empty,first_name:'Camille',last_name:marker,[field]:value}};
+      if(version===1){delete cmd.version;if(operation==='create')cmd.fields={first_name:cmd.fields.first_name,last_name:cmd.fields.last_name};}
+      commands.add(cmd.command_id);await manifest();
+      const response=await api('/api/contacts/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cmd)});
+      check(`HTTP v${version} ${operation} ${field} refuse ${value}`,response.body.status==='validation'&&response.body.field===field);
+    }
+  }
   const huge=make({notes:'x'.repeat(128*1024+1)});commands.add(huge.command_id);await manifest();
   const oversize=await api('/api/contacts/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(huge)});
   check('Commande >128 Kio refusée avant mutation',oversize.status===400&&oversize.body.status==='validation'&&oversize.body.message==='Commande trop longue.');
@@ -128,9 +180,24 @@ try{
   admin=createClient(`https://${project}.supabase.co`,secret.service_role_key,options);owner=createClient(`https://${project}.supabase.co`,secret.anon_key,options);
   const identity=await admin.auth.admin.getUserById(secret.owner_id);check('Projet dédié et propriétaire exacts',!identity.error&&identity.data.user.email===secret.owner_email);
   check('Session RPC propriétaire',!(await owner.auth.signInWithPassword({email:secret.owner_email,password:secret.owner_password})).error);
-  baseline=await snapshot();await login();
+  baseline=await snapshot();receiptBaseline=await receiptSnapshot();await login();
   const anonymous=await fetch(base+'/api/contacts?version=2&page=1',{redirect:'manual'});check('API v2 sans session : données refusées',anonymous.status===401&&(await anonymous.json()).status==='unauthenticated');
   const anonymousDuplicates=await fetch(base+'/api/contacts/duplicates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'qa@example.invalid',exclude_id:null,page:1}),redirect:'manual'});check('Doublons sans session : données refusées',anonymousDuplicates.status===401);
+  await click('Ajouter un contact');check('Noms : formulaire prêt',await until(`!!document.getElementById('contact-first_name')`));
+  await fill('first_name','Jean2');await fill('last_name','Nom٢');await save();
+  check('Noms : erreurs près des deux champs et saisie conservée',await until(`document.getElementById('error-first_name')?.textContent.includes('chiffres')&&document.getElementById('error-last_name')?.textContent.includes('chiffres')&&document.getElementById('contact-first_name').value==='Jean2'&&document.getElementById('contact-last_name').value==='Nom٢'`));
+  check('Noms : focus direct sur le premier champ invalide',await until(`document.activeElement?.id==='contact-first_name'`));
+  await click('Fermer la fiche');check('Noms : confirmation de fermeture ouverte',await until(`!!document.querySelector('[data-slot=dialog-content]')`));
+  await browser('snapshot','-i');await evaluate(`(()=>{const button=[...document.querySelectorAll('[data-slot=dialog-content] button')].find(el=>el.textContent.trim()==='Enregistrer');if(!button)throw new Error('Save confirmation missing');button.setAttribute('data-names-save-close','');return true})()`);await browser('focus','[data-names-save-close]');await browser('press','Enter');
+  check('Noms : focus après fermeture sur erreur et saisie conservée',await until(`!document.querySelector('[data-slot=dialog-content]')&&document.activeElement?.id==='contact-first_name'&&document.getElementById('contact-first_name').value==='Jean2'&&document.getElementById('contact-last_name').value==='Nom٢'`));
+  await browser('screenshot',resolve(proof,'names-errors.png'));
+  await fill('first_name','Élodie');await fill('last_name',marker);await save();check('Noms : correction et création confirmées',await saved());
+  const namesId=z.uuid().parse(await evaluate(`new URL(location.href).searchParams.get('panel')`));fixtures.add(namesId);await manifest();
+  await fill('last_name','O’Connor𝟚');await save();check('Noms : modification refusée sans effacer le texte',await until(`document.getElementById('error-last_name')?.textContent.includes('chiffres')&&document.getElementById('contact-last_name').value==='O’Connor𝟚'`));
+  check('Noms : refus sans mutation',(await read(namesId)).last_name===marker);
+  await fill('last_name','O’Connor');await save();check('Noms : correction enregistrée',await saved());await close();
+  await browser('open',`${base}/contacts?panel=${namesId}`);check('Noms : correction persistée après rechargement',await until(`document.getElementById('contact-first_name')?.value==='Élodie'&&document.getElementById('contact-last_name')?.value==='O’Connor'`));await installTransport();await browser('screenshot',resolve(proof,'names-persisted.png'));await close();
+  await verifyHistoricalNames();
   if(!httpOnly){
   if(!resumeDetails){
   await click('Ajouter un contact');check('Création : six champs prêts',await until(`!!document.getElementById('contact-notes')`));
@@ -177,7 +244,7 @@ try{
   await fill('linkedin_url','http://example.invalid/contact');await fill('notes',note);await save();check('HTTP et note restaurés',await saved());
 
   const duplicateEmail=`doublon-${randomUUID()}@example.invalid`,duplicateIds=[];
-  for(let i=0;i<27;i++){const created=await create({first_name:`Doublon ${String(i).padStart(2,'0')}`,email:i%2?duplicateEmail.toUpperCase():duplicateEmail});check('Fixture doublon créée',created.status==='success');duplicateIds.push(created.contact.id);}
+  for(let i=0;i<27;i++){const created=await create({first_name:`Doublon ${alphabetic(String(i).padStart(2,'0'))}`,email:i%2?duplicateEmail.toUpperCase():duplicateEmail});check('Fixture doublon créée',created.status==='success');duplicateIds.push(created.contact.id);}
   await close();await click('Actualiser');check('Liste paginée stabilisée',await until(`document.querySelectorAll('[data-contact-id]').length===25&&!document.body.innerText.includes('Actualisation…')`));
   const visible=await evaluate(`[...document.querySelectorAll('[data-contact-id]')].map(el=>el.dataset.contactId)`);check('Au moins un doublon hors page actuelle',duplicateIds.some(value=>!visible.includes(value)));
   await openFixture(id);await fill('email',duplicateEmail.toUpperCase());
@@ -237,7 +304,7 @@ try{
 finally{
   if(browserStarted)await collect().catch(()=>{});
   try{
-    if(admin&&baseline){const scan=await admin.from('contacts').select('id').eq('last_name',marker);if(scan.error)throw new Error('Inventaire fixture indisponible');for(const row of scan.data){if(baseline.some(original=>original.id===row.id))throw new Error('Collision fixture préexistante');fixtures.add(row.id);}await manifest();check('Contacts préexistants intégralement inchangés',JSON.stringify(await snapshot())===JSON.stringify(baseline));}
+    if(admin&&baseline){const scan=await admin.from('contacts').select('id').eq('last_name',marker);if(scan.error)throw new Error('Inventaire fixture indisponible');for(const row of scan.data){if(baseline.some(original=>original.id===row.id))throw new Error('Collision fixture préexistante');fixtures.add(row.id);}await manifest();check('Contacts préexistants intégralement inchangés',JSON.stringify(await snapshot())===JSON.stringify(baseline));if(receiptBaseline)check('Reçus préexistants intégralement inchangés',JSON.stringify(await receiptSnapshot())===JSON.stringify(receiptBaseline));}
   }catch{process.exitCode=1;success=false;console.error('FAIL conservation ou inventaire de fixtures.');}
   try{if(secret&&(fixtures.size||commands.size)){await manifest();await cleanupContactsQa({contact_ids:[...fixtures],command_ids:[...commands]});check('Contacts et reçus exacts supprimés, absence vérifiée',true);await rm(manifestPath);}}catch{process.exitCode=1;success=false;console.error('FAIL nettoyage exact à reprendre via manifeste local.');}
   if(owner)try{await signOutQaSession(owner);}catch{process.exitCode=1;success=false;console.error('FAIL fermeture session QA.');}

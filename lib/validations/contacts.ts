@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { contactCommandSchema as legacyCommandSchema, contactSchema as legacyContactSchema, contactResultSchema as legacyResultSchema } from "./contacts-v1";
+import { CONTACT_NAME_DIGITS } from "./contact-name-digits";
+import { contactTransportCommandSchema as legacyCommandSchema, contactSchema as legacyContactSchema, contactResultSchema as legacyResultSchema } from "./contacts-v1";
 export { legacyCommandSchema, legacyContactSchema, legacyResultSchema };
 export const CONTACT_FIELDS = ["first_name", "last_name", "email", "job_title", "linkedin_url", "notes"] as const;
 export const FIELD_LABELS = { first_name: "Prénom", last_name: "Nom", email: "E-mail", job_title: "Titre professionnel", linkedin_url: "LinkedIn", notes: "Notes" } as const;
@@ -8,7 +9,18 @@ const bounded = (limit: number) => z.string().refine(value => !/[\u0000\uD800-\u
 export const rawContactNameSchema = bounded(200);
 export const emailSchema = z.string().trim().pipe(bounded(254)).refine(value => value === "" || z.email().safeParse(value).success, "Indiquez une adresse e-mail valide.");
 export const linkedinSchema = z.string().trim().pipe(bounded(2048)).refine(value => { if (!value) return true; if (/[\\\s\x00-\x1f\x7f]/u.test(value)) return false; try { const url = new URL(value); return /^https?:\/\//i.test(value) && (url.protocol === "https:" || url.protocol === "http:") && Boolean(url.hostname); } catch { return false; } }, "Indiquez une URL absolue HTTP ou HTTPS.");
-export const contactFieldsSchema = z.object({ first_name: z.string().trim().pipe(bounded(200)), last_name: z.string().trim().pipe(bounded(200)), email: emailSchema, job_title: z.string().trim().pipe(bounded(200)), linkedin_url: linkedinSchema, notes: bounded(20000) }).strict();
+const storedFieldsSchema = z.object({ first_name: z.string().trim().pipe(bounded(200)), last_name: z.string().trim().pipe(bounded(200)), email: emailSchema, job_title: z.string().trim().pipe(bounded(200)), linkedin_url: linkedinSchema, notes: bounded(20000) }).strict();
+// Only new names are constrained; stored contacts and immutable receipts remain readable.
+const newNameSchema = z.string().trim().pipe(bounded(200)).refine(value => !CONTACT_NAME_DIGITS.test(value), "Le prénom et le nom ne doivent pas contenir de chiffres.");
+export const contactFieldsSchema = storedFieldsSchema.extend({ first_name: newNameSchema, last_name: newNameSchema });
+export function contactEditorSchema(base: { first_name: string; last_name: string } | null) {
+  return storedFieldsSchema.superRefine((values, ctx) => {
+    for (const field of ["first_name", "last_name"] as const) {
+      if ((!base || values[field] !== base[field]) && CONTACT_NAME_DIGITS.test(values[field])) ctx.addIssue({ code: "custom", path: [field], message: "Le prénom et le nom ne doivent pas contenir de chiffres." });
+    }
+    if (!values.first_name && !values.last_name) ctx.addIssue({ code: "custom", path: ["first_name"], message: "Indiquez un prénom ou un nom." });
+  });
+}
 export const rawContactFieldsSchema = z.object({ first_name: z.string(), last_name: z.string(), email: z.string(), job_title: z.string(), linkedin_url: z.string(), notes: z.string() }).strict();
 export const contactNamesSchema = contactFieldsSchema.refine(v => Boolean(v.first_name || v.last_name), { message: "Indiquez un prénom ou un nom.", path: ["first_name"] });
 const version = z.number().int().positive();
@@ -18,12 +30,17 @@ export const detailsVersionsSchema = fieldVersionsSchema.omit({ first_name: true
 // host that WHATWG URL rejects. The editor/commands keep full semantic validation;
 // rendered links separately require linkedinSchema, never this storage schema.
 const storedLinkedinSchema = bounded(2048).refine(value => value === "" || /^https?:\/\//i.test(value), "Protocole du lien stocké non valide.");
-export const contactSchema = contactFieldsSchema.extend({ linkedin_url: storedLinkedinSchema, id: z.uuid(), field_versions: fieldVersionsSchema, revision: version, created_at: z.string(), updated_at: z.string() });
+export const contactSchema = storedFieldsSchema.extend({ linkedin_url: storedLinkedinSchema, id: z.uuid(), field_versions: fieldVersionsSchema, revision: version, created_at: z.string(), updated_at: z.string() });
 export const contactSummarySchema = contactSchema.omit({ notes: true });
 const patchSchema = contactFieldsSchema.partial().refine(v => Object.keys(v).length > 0, "Aucun champ modifié.");
 export const contactCommandSchema = z.discriminatedUnion("operation", [
   z.object({ version: z.literal(2), operation: z.literal("create"), command_id: z.uuid(), fields: contactNamesSchema }).strict(),
   z.object({ version: z.literal(2), operation: z.literal("update"), command_id: z.uuid(), contact_id: z.uuid(), fields: patchSchema, base_versions: fieldVersionsSchema.partial() }).strict().refine(v => Object.keys(v.fields).sort().join() === Object.keys(v.base_versions).sort().join(), "Versions requises pour chaque champ modifié."),
+]);
+const transportPatchSchema = storedFieldsSchema.partial().refine(v => Object.keys(v).length > 0, "Aucun champ modifié.");
+export const contactTransportCommandSchema = z.discriminatedUnion("operation", [
+  z.object({ version: z.literal(2), operation: z.literal("create"), command_id: z.uuid(), fields: storedFieldsSchema.refine(v => Boolean(v.first_name || v.last_name), { message: "Indiquez un prénom ou un nom.", path: ["first_name"] }) }).strict(),
+  z.object({ version: z.literal(2), operation: z.literal("update"), command_id: z.uuid(), contact_id: z.uuid(), fields: transportPatchSchema, base_versions: fieldVersionsSchema.partial() }).strict().refine(v => Object.keys(v.fields).sort().join() === Object.keys(v.base_versions).sort().join(), "Versions requises pour chaque champ modifié."),
 ]);
 export const contactResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("success"), contact: contactSchema }),

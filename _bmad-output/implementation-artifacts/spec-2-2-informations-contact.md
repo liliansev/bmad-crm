@@ -112,3 +112,7 @@ Vérification du code final : TypeScript Node 24 propre ; 20 contrôles du vrai 
 Les preuves UI initiales (126 assertions) et les preuves après revue restent séparées par empreinte produit. Les interruptions de helpers de recette sont conservées en échec dans leurs segments, avec reprise ciblée des étapes restantes ; seuls les contrôles effectivement passés sont cités. Le résultat final exige la couverture complète et un dernier segment réussi. Captures de la note de 20 000 caractères, du focus après erreur et des doublons inspectées par le parent.
 
 Branche locale `codex/2-2-informations-contact`, serveur maintenu sur http://localhost:3000. Migration additive appliquée, mais aucun push ni déploiement du client 2.2. Story 2.3 toujours en backlog.
+
+## Amendement approuvé — 2026-09-08
+
+**Amendement approuvé le 8 septembre 2026 — noms sans chiffres :** toute nouvelle valeur de prénom ou nom transmise à la création ou correction refuse les chiffres décimaux Unicode (Nd), avec erreur près du champ et texte conservé. Accents, espaces, apostrophes, tirets et lettres internationales restent acceptés ; au moins un prénom ou nom après trim, maximum 200 points de code par champ. Les noms historiques non modifiés restent lisibles et ne sont pas nettoyés. Reçus confirmés rejoués sans mutation ; commandes anciennes non confirmées refusées et corrigeables. Validation formulaire, HTTP et RPC v1/v2 ; aucun autre champ modifié.
