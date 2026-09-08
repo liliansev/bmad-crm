@@ -21,6 +21,9 @@ inputDocuments:
 updated: '2026-09-06'
 ---
 
+> **Périmètre courant réduit le 8 septembre 2026 sur demande de Lilian pour limiter temps/crédits :** POC Contacts + Pipeline kanban simple. Société retirée de l’interface principale, données historiques conservées. Stories3.3–3.8 reportées ; pagination globale25 et recette ciblée pour3.2 remplacent sa version étendue. Le détail ci-dessous reste le backlog initial, pas la promesse du livrable courant. Voir `../implementation-artifacts/mandat-v1-avant-bmad06.md`.
+
+
 # bmad-crm - Epic Breakdown
 
 ## Overview

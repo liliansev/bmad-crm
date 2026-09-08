@@ -14,7 +14,7 @@ import { connectLegacyDraft, acknowledge, freshDraft, isDirty, makeCommand, read
 import { ExchangeEditor, type ExchangeEditorHandle } from "@/components/exchanges/exchange-editor";
 import { OpportunityLinks } from "@/components/opportunities/opportunity-links";
 import { ExchangeHistory } from "@/components/exchanges/exchange-history";
-import { ContactCompanyEditor, type CompanyEditorHandle } from "./contact-company-editor";
+import { type CompanyEditorHandle } from "./contact-company-editor";
 
 export type EditorHandle = { requestClose: () => void };
 type Props = { ownerId: string; target: string; contact: Contact | null; handle: React.RefObject<EditorHandle | null>; onSaved: (contact: Contact) => void; onClose: () => void; onCancelClose: () => void };
@@ -234,7 +234,6 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
           </div>;
         })}
       </fieldset>
-      {contact ? <ContactCompanyEditor ownerId={ownerId} contactId={contact.id} handle={relationEditor} /> : null}
       {contact ? <><OpportunityLinks contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setCreateExchangeSaving} /><ExchangeHistory ownerId={ownerId} handle={exchangeHistory} onBusyChange={setUpdateExchangeSaving} contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
       <p id="contact-help" className="text-xs text-muted-foreground">Un prénom ou un nom suffit. Enregistrez pour confirmer vos changements.</p>
       {storageError ? <p role="alert" className="text-sm text-destructive">Le stockage de cet onglet est indisponible. Gardez cette page ouverte jusqu’à confirmation.</p> : null}

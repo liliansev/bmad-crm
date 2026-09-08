@@ -11,3 +11,8 @@ Les trois remarques d’outillage laissées ouvertes à BMAD 05 restent des acti
 État externe vérifié pour cette reprise : projet Supabase `bmad-crm`, organisation Persos, plan free, ACTIVE_HEALTHY, propriétaire membre vérifié, référence `otadrkhrjxafutocstzo`. Les recettes préservent toutes données/reçus préexistants. Aucun seed massif sans manifeste, contrôles et nettoyage exact. Dev server existant conservé sur localhost:3000. Un seul agent exécute les mutations/recettes distantes à la fois.
 
 Arrêt final : fonctionnalités restantes vérifiées localement et bilan honnête des AC/mesures. La préparation et validation de la livraison frontend/production restent pour BMAD 06 ; ne pas marquer ces étapes exécutées ni proclamer les epics intégralement livrés en production.
+
+
+## Réduction prioritaire demandée ensuite par Lilian
+
+« finis au plus vite », « retire les sociétés et quelques user stories », budget de crédits limité. Cette nouvelle instruction remplace l'achèvement des16stories ci-dessus : POC Contacts + Pipeline kanban simple, pagination globale existante, montant/Notes et étapes, retrait de l'accès Sociétés. Données et backend historiques conservés ; pas de démolition/refactor coûteux. Les stories3.3–3.8 sont reportées hors périmètre de tournage actuel, jamais présentées comme faites. L'accueil redirige vers Pipeline. Une seule revue indépendante ciblée et smoke des nouveaux chemins remplacent les trois revues et recettes exhaustives restantes. Aucun nouveau sous-agent en cascade ; aucune campagneQ6. Arrêt avant build/refactor/déploiement, bilan et conducteur mis à jour.

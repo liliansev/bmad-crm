@@ -1,37 +1,22 @@
-# BMAD 06 — Point de départ du tournage
+# BMAD 06 — Reprise sur le POC réduit
 
-> Extension en cours depuis le nouveau mandat du 8 septembre : terminer toute la V1 avant cette reprise. Le bilan ci-dessous décrit le précédent checkpoint Contacts ; il sera remplacé après les stories 2.3–3.8. Il ne constitue plus le périmètre final demandé. Voir [mandat courant](mandat-v1-avant-bmad06.md).
+Périmètre réduit le8septembre à la demande de Lilian pour économiser temps et crédits. Le POC Contacts + Pipeline est vérifié localement et prêt pour la reprise de la vidéo06 avant refactorisation et déploiement.
 
-Préparé le 8 septembre 2026 à partir de [la leçon Notion](https://app.notion.com/p/3ce5d2efba7f81f38e1be514e6cc311f), consultée à cette date. Arrêt au démarrage : inventaire de dette, refactoring, build de livraison et déploiement restent à faire pendant BMAD 06.
+## Périmètre du tournage
 
-## État disponible
+- Contacts : création, informations/Notes, protection des noms sans chiffres, échanges déjà livrés.
+- Pipeline : opportunités, montant exact, Notes, cinq étapes ; kanban simple avec pagination globale25.
+- Sociétés : accès retiré ; données historiques et code sous-jacent préservés.
+- Reporté : tâches et clôture associée, Relances, cinq priorités, échanges liés aux opportunités et montant gagné Société (stories3.3–3.8). Ne pas les présenter comme implémentés.
 
-- Code produit `c8ab921`, branche `codex/contacts-noms-sans-chiffres`.
-- Application locale : http://localhost:3000/contacts ; serveur conservé actif.
-- Contacts : création, édition des noms/email/titre/LinkedIn/notes, reprise de saisie, protection des noms sans chiffres et des données historiques.
-- [Bilan BMAD 05](bilan-bmad-05.md) : TypeScript, 52 contrôles transport, 124 DB, 309 assertions UI/HTTP et 18 contrôles d’accès complémentaires réussis. Secrets et limites documentés.
-- [Revue du commit](spec-contact-noms-sans-chiffres.md) : trois actions ouvertes conservées par décision humaine. [Autres limites](deferred-work.md).
-- Dernier client hébergé connu plus ancien que le code local ; état production exact à relire avant livraison, pas de promesse de déploiement actuel.
+## Arrêt prévu
 
-BMAD 06 est un épisode de formation, pas le nom d’un skill. Seuls les skills BMAD sont autorisés. `bmad-help` oriente ; après inventaire et choix humain, `bmad-build` peut traiter le lot de maintenance, puis revue BMAD si utile. Préférer une nouvelle conversation pour la reprise, sans la créer automatiquement.
+Reprendre avant l'inventaire de dette et la refactorisation choisis pour la vidéo, puis build de livraison et déploiement explicitement autorisé. Aucun de ces travaux n'est lancé automatiquement. Le dernier client hébergé est antérieur au code local ; relire l'état exact avant livraison. Supabase a reçu les migrations additives des stories déjà terminées ; ne pas les rejouer, réconcilier le registre comme indiqué dans deferred-work.md.
 
-## Premier prompt à lancer à l’écran
+Pour démarrer le tournage : « Le POC Contacts + Pipeline est notre périmètre. Utilise uniquement BMAD. Fais d'abord un inventaire de dette en lecture seule et propose le plus petit lot de refactorisation utile ; ne déploie rien sans mon instruction. »
 
-> Analyse le dépôt et l’historique récent. Liste la dette technique observée, avec une preuve pour chaque point. Classe-la par risque utilisateur, risque de sécurité, coût de maintenance et effort. Prends en compte les constats conservés dans la revue du commit c8ab921 et deferred-work.md, sans considérer leur correction comme déjà approuvée. Ne modifie encore aucun fichier. Seuls les skills BMAD sont autorisés.
+## Vérification finale
 
-## Adapter la leçon au dépôt réel
+TypeScript Node24 et diff-check propres ; revue indépendante ciblée sans défaut bloquant. Smoke agent-browser22contrôles réussis : création, montant/Notes carte et panneau, changement d’étape, persistance après reload, annulation sans écriture, navigation et Contacts sans Société. Captures desktop/mobile inspectées ; fixture nettoyée, navigateur fermé. Preuve locale : verification/3-2/smoke-results.json.
 
-Le scénario à livrer est connexion → création d’un contact → édition → rechargement → refus d’un visiteur et d’un compte non propriétaire. Les prochaines actions et relances du script général ne sont pas encore implémentées : ne pas les créer pour remplir la vidéo. Story 2.3 et suivantes restent en backlog.
-
-Le dépôt n’a pas de `pnpm test` ou `pnpm lint` génériques : utiliser `pnpm typecheck`, `pnpm verify:contacts:transport`, puis les recettes DB/UI pertinentes successivement, et `git diff --check`. Les scripts utilisent Node 24 ; sur ce Mac le binaire vérifié est `/Users/a1207/.npm/_npx/460b723c8ad28bd7/node_modules/node/bin`. Les recettes distantes ont besoin des secrets QA privés et du helper local ; ne rien afficher de `.local` pendant le tournage.
-
-## Déroulé restant pour BMAD 06
-
-1. Inventaire en lecture seule et choix d’un petit lot ; aucune correction des trois constats n’est automatiquement validée.
-2. Plan de refactoring, validation humaine, lots avec vérifications et commits distincts.
-3. Préparation de livraison à partir du dépôt réel : build, variables présentes sans valeurs affichées, migrations appliquées/en attente, configuration auth, cible et plan Vercel/Supabase.
-4. Vérification Git/remote/branche exacte et stratégie de retour arrière. Les migrations sont additives mais la base distante est partagée avec la version hébergée : ne pas les réappliquer aveuglément.
-5. Livraison explicitement autorisée au moment prévu ; suivre le déploiement jusqu’à Ready.
-6. Rejouer le parcours contacts et les refus d’accès sur l’URL de production ; ne dire « déployé et vérifié » qu’après cette preuve.
-
-Ne pas lancer de build pendant le développement ni tuer le serveur pour préparer cette reprise. Aucun push, déploiement ou travail de la prochaine story n’a été effectué pour ce point de départ. Aucun statut Notion de tournage n’est changé automatiquement.
+Limites assumées : changement d’étape depuis la fiche (pas de glisser-déposer), pagination globale25 avec compteurs de colonnes limités à la page. Les mesures de chargeQ6 et l’objectif16ms ne sont pas certifiés. Les preuves historiques restent dans les specs. Le serveur local reste disponible sur http://localhost:3000/pipeline.

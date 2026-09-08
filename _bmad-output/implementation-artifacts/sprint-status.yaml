@@ -52,7 +52,7 @@ development_status:
 
   epic-3: in-progress
   3-1-créer-une-opportunité-et-la-relier-à-mon-contexte: review
-  3-2-piloter-le-kanban-et-modifier-mes-cartes-en-place: backlog
+  3-2-piloter-le-kanban-et-modifier-mes-cartes-en-place: review
   3-3-programmer-une-action-et-clôturer-une-opportunité-sans-incoh: backlog
   3-4-terminer-reporter-et-corriger-mes-prochaines-actions: backlog
   3-5-retrouver-et-traiter-toutes-mes-relances: backlog
@@ -74,3 +74,14 @@ planning_readiness:
 
 # Formation : BMAD 05 contrôlé ; reprise au début de BMAD 06 (inventaire dette en lecture seule).
 # Conducteur actuel : tournage-bmad-06.md ; historique : reprise-apres-contacts.md.
+
+# Réduction demandée le8septembre :3.3–3.8 hors périmètre du POC courant, backlog conservé.
+# Société retirée de la navigation ; acquis et données historiques préservés.
+
+current_delivery:
+  name: POC réduit Contacts et Pipeline
+  status: verified-locally
+  completed_through: 3.2
+  excluded_stories: [3.3, 3.4, 3.5, 3.6, 3.7, 3.8]
+  frontend_deployment: reserved-for-bmad-06
+  note: Le backlog initial reste distinct ; aucune clôture fictive des stories reportées.
