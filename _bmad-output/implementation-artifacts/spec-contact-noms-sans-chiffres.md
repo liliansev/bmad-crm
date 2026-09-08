@@ -55,6 +55,29 @@ Jamais : effacement de données réelles, nouvelle dépendance, Playwright, dép
 
 Given une requête sans session ou d’un autre compte, when elle vise un contact, then les protections actuelles continuent à refuser l’accès. Given une ancienne valeur chiffrée, when la fiche ou son brouillon sont ouverts, then le texte reste accessible et peut être corrigé sans perdre les autres champs. Given une commande confirmée avant la règle, when elle est rejouée, then elle ne crée ni doublon ni nouvelle révision.
 
+### Review Findings
+
+Revue BMAD du 2026-09-08, commit `c8ab921e89d457dba684bfd84bd20476da286281` comparé à son parent `2a06b01d308617c9723cc9195699d3230d9b9ae2`. Intention : cette story et ses critères d’acceptation. Quatre lectures indépendantes terminées : blind-hunter, edge-case, verification-gap, acceptance-auditor. Revue statique ; les exécutions antérieures consignées ci-dessous n’ont pas été reproduites pendant cette revue. Aucun correctif appliqué. Aucun défaut métier ou contournement d’autorisation confirmé.
+
+- [ ] [Review][Patch][P2] **Rendre la recette reproductible depuis Git.** Le nouveau `query()` exécute `.local/supabase-query.py`, qui est ignoré et absent des fichiers suivis. `receiptSnapshot()` l’appelle systématiquement avant les scénarios. Même après fourniture des secrets, un nouveau checkout ne peut donc pas exécuter la recette avec le seul code livré. Réutiliser une implémentation suivie de l’accès Management API (déjà présente dans la recette DB) en gardant les secrets externes. [`scripts/verify-contact-details.mjs:89`]
+- [ ] [Review][Patch][P3] **Respecter le périmètre des modes ciblés.** Les nouveaux parcours de noms et d’héritage sont exécutés avant les branches des modes `--idna-only`, `--reliability-only` et `--resume-details`. Ces modes lancent désormais des créations et reprises historiques sans rapport avec leur cible ; une panne de ces scénarios empêche d’atteindre le test demandé. Placer cette suite dans un périmètre explicite en conservant son exécution dans la recette complète. [`scripts/verify-contact-details.mjs:186`]
+- [ ] [Review][Patch][P3] **Fixer la version Unicode de l’oracle de test.** Le matcher livré est figé sur Unicode 17, mais le corpus et les résultats attendus viennent du `\p{Nd}` du runtime, avec une garde limitée à Node `24.*`. Node 24.0.0 embarque Unicode 16 : un runtime pourtant accepté peut donc omettre les nouvelles plages Unicode 17 de son corpus. Vérifier explicitement la version Unicode attendue ou utiliser un corpus versionné, dans les recettes transport et DB. Ce constat concerne la garantie du test, pas un défaut démontré du matcher livré. [`scripts/verify-contact-details-transport.mjs:43`, `scripts/verify-contact-details-db.mjs:64`] Source : [Node 24.0.0, U_UNICODE_VERSION](https://raw.githubusercontent.com/nodejs/node/v24.0.0/deps/icu-small/source/common/unicode/uchar.h).
+
+Triage : 0 décision métier requise, 3 patches proposés, 0 report hors périmètre, 7 propositions rejetées. Décision de Lilian après présentation : conserver les trois constats comme actions à faire, sans correction. L’ancien journal de revue ci-dessous décrit la revue d’implémentation précédente et ses corrections, pas cette nouvelle revue du commit.
+
+#### Rejected appendix
+
+- B1 — erreurs restant après correction : **false**. `useForm({ values: draft.values })` reçoit les valeurs mises à jour ; le RHF installé déclenche `_reset` lors de leur changement et vide les erreurs en l’absence de `keepErrors`. Le constat omettait ce chemin.
+- B2 — oracle Unicode non fixé : **low, retenu**, troisième patch ci-dessus.
+- B3 — absence de comparaison sur chaque caractère Unicode non numérique : **low, rejeté**. Les chiffres, voisins et lettres représentatives sont comparés au matcher réel ; aucune plage incorrecte actuelle identifiée. Une comparaison exhaustive des caractères non numériques reste une extension optionnelle du corpus minimal.
+- B4 — ancien pending create non testé dans le navigateur : **low, rejeté**. Ce scénario exact n’est pas ajouté ; les couches transport/RPC et le cycle UI pending historique sont déjà exercés. Aucune divergence spécifique à create démontrée justifiant un parcours navigateur supplémentaire dans ce minimum.
+- B5 — reçus historiques update et conflit absents du test HTTP : **low, rejeté**. Variantes exactes absentes du parcours HTTP ajouté, mais rejeu avant nouvelle validation commun aux opérations, lectures permissives et rejeu HTTP v1/v2 vérifiés. Aucun chemin fautif distinct identifié.
+- B6 — brouillon historique chiffré avec espaces périphériques : **low, rejeté**. Pas de scénario combiné dédié ; canonisation par trim et omission des noms inchangés sont présentes. Aucun défaut démontré sur cette combinaison.
+- B7 — patch mixte nom invalide et note valide : **low, rejeté**. La garde des noms fournis intervient avant toute mutation dans les deux RPC. Le scénario combiné renforcerait la couverture mais aucun risque d’écriture partielle propre au diff n’est établi.
+- B8 — modes ciblés élargis : **low, retenu**, deuxième patch ci-dessus.
+- B9 — helper non suivi : **medium, retenu**, premier patch ci-dessus.
+- B10 — amendement répété dans plusieurs documents : **false**. Mise à jour intentionnelle des sources de décisions et critères associés ; aucune divergence constatée au commit. Ce risque documentaire hypothétique ne constitue pas un défaut à corriger dans cette revue.
+
 ## Implementation Notes
 
 Plan approuvé avant cette spec dans la conversation ; aucune nouvelle question métier ni nouvelle validation à demander. Approche multi-couches nécessitant migration, donc dispatch. L’agent implémente et vérifie séquentiellement ; le parent prépare uniquement les contrôles de cible en lecture seule pendant ce travail. Les tests réels distants autorisés par le plan priment sur les limites génériques de skill. Aucun push.

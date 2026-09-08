@@ -1,8 +1,8 @@
 # Point de reprise pour la formation
 
-## Reprise actuelle : BMAD 05, tester et sécuriser
+## Reprise actuelle : démarrage de BMAD 06
 
-Lilian a terminé la séquence précédente et demandé de préparer le tournage de BMAD 05. Le point de départ est le commit produit `948e5c4` (contacts 2.1 et 2.2 fonctionnels localement). Lire [le conducteur de tournage](tournage-bmad-05.md) : commandes existantes exposées dans package.json, parcours, prompts et limites du périmètre. La préparation ne lance pas la leçon de revue à la place de Lilian et ne démarre pas la story 2.3. Les points d’arrêt ci-dessous sont historiques.
+BMAD 05 est clôturé techniquement : lire [le bilan vérifié](bilan-bmad-05.md). Lilian a demandé de terminer les contrôles jusqu’au début de BMAD 06. Le code produit de référence est `c8ab921` ; aucun patch des trois constats conservés, aucun push/déploiement. Lire [le point de départ BMAD 06](tournage-bmad-06.md) et commencer par l’inventaire de dette en lecture seule. Ne pas démarrer la story 2.3 ni un refactoring sans le choix prévu pour la leçon. Les sections ci-dessous sont historiques.
 
 ## Actualisation après la session 2.2
 
