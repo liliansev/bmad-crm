@@ -48,14 +48,14 @@ Jamais : Tâche avant 3.3, kanban complet avant 3.2, liens Échange/Opportunité
 
 ## Code Map
 
-État lu le 8 septembre pendant l’implémentation de 2.3 ; les fichiers existants ne constituent pas une preuve de clôture. Relire les versions finales de 2.3–2.5 au dispatch.
+État relu après implémentation de 2.5, revue finale en cours ; confirmer sa clôture au dispatch. Les exemples de contrats ci-dessous sont réels.
 
 - Accès existant : `lib/auth.ts`, `lib/contacts.ts` (`contactsClient`), `lib/supabase/`, `app/actions/companies.ts` et `app/api/companies/command/route.ts`. Suivre la frontière validée puis RPC, sans second mécanisme d’identité.
 - Exemples réels : `lib/companies.ts` (`readCompanies`, `readCompany`, `readCompanyContacts`), `lib/validations/companies.ts`, `lib/companies-{cache,drafts,transport}.ts`. Cache créé par shell/propriétaire, déduplication, révisions et générations ; étendre le pattern pour le patch par champ, sans recopier aveuglément le brouillon mono-champ Société.
 - Surfaces existantes : `components/contacts/{contacts-shell,contact-editor}.tsx`, `components/companies/{companies-shell,company-editor}.tsx`, `app/(dashboard)/{contacts,societes}/`, `components/dashboard-nav.tsx`. Intégrer création contextuelle et liens ouvrables ; préserver liste Sociétés limitée au nom.
 - Composants disponibles : `components/ui/{button,card,dialog,input,label,sheet,skeleton,table,textarea}.tsx`. Inventorier de nouveau et consulter Context7 avant ajout shadcn nécessaire.
 - Nouveaux proposés : `lib/validations/opportunities.ts`, `lib/opportunities.ts`, `lib/opportunities-{cache,drafts,transport}.ts`, `app/actions/opportunities.ts`, `app/api/opportunities/`, `components/opportunities/`, `app/(dashboard)/pipeline/{page,loading}.tsx` et migration additive dédiée. Les noms sont une proposition d’implémentation, pas des interfaces déjà présentes.
-- La dernière migration observée est `supabase/migrations/20260908200000_companies.sql`. Réutiliser les contrats/reçus confirmés Contacts/Sociétés ; Échanges doit être relu après 2.5. Aucun fichier Opportunité ou Tâche n’existe dans cet instantané.
+- Dernière migration actuelle : `supabase/migrations/20260908220000_exchange_update.sql`, appliquée. Contrats Échange réels : `lib/validations/exchanges.ts`, `lib/exchanges-drafts.ts` (acknowledgeExchangeUpdate / revalidateExchangeUpdate), `lib/exchanges-transport.ts`, `components/exchanges/{exchange-editor,exchange-update-editor,exchange-history}.tsx`. Les panneaux Contact/Société composent plusieurs handles dirty/busy/save/discard ; préserver leurs protections lors d’ajout d’une surface Opportunité. Aucun fichier Opportunité ou Tâche n’existe dans cet instantané.
 
 ## Tasks & Acceptance
 
@@ -74,6 +74,23 @@ Jamais : Tâche avant 3.3, kanban complet avant 3.2, liens Échange/Opportunité
 **AC4 — Fiabilité et portée :** Given échec/retry/concurrence ou accès interdit, When R2 et les appels directs sont exécutés, Then aucun doublon, écrasement ou fuite n’apparaît ; la story fonctionne sans schéma Tâche et les cinq étapes sont utilisables depuis la fiche.
 
 ## Implementation Notes
+
+Contrats arrêtés pendant la réalisation 2.5, à confronter à ses interfaces finales au dispatch :
+
+- Titre : trim identique aux noms Société, 1–200 points de code, chiffres autorisés ; NUL et UTF-16 invalide refusés. Notes : 0–20000 points de code, préserver espaces/sauts de ligne, mêmes refus Unicode.
+- Montant : null ou chaîne canonique de centimes de « 0 » à « 9223372036854775807 » inclus. Ce plafond est technique (bigint PostgreSQL signé), pas une borne métier inventée. Saisie décimale après trim, chiffres avec un séparateur virgule ou point, deux décimales au maximum ; refuser exposant, signe négatif, groupements de milliers et troisième décimale. Normaliser zéros initiaux. Conversion en chaînes/BigInt, jamais Number/parseFloat ni arrondi. Toutes projections, commandes et reçus transportent amount_cents en texte SQL explicite : to_jsonb(bigint) seul produit un nombre JSON imprécis. Future somme3.8 également en chaîne, sans plafond individuel.
+- Create : `{operation:"create",command_id,fields:{title,amount_cents,notes,company_id,primary_contact_id}}`. Étape qualifying, revision=1, workflow_revision=1, versions champs=1.
+- Update : `{operation:"update",command_id,opportunity_id,fields,base_versions}` ; patch non vide et clés exactes communes. Exclure stage de ce patch ordinaire : aucun chemin parallèle ne doit contourner les futurs choix de clôture.
+- Transition : `{operation:"transition",command_id,opportunity_id,stage,base_workflow_revision}`. Fiche et futur kanban utiliseront ce même chemin. Vérifier la version de workflow sous verrou dès 3.1 ; toutes transitions possibles. Seul changement d’étape incrémente workflow_revision ; titre/montant/Notes/liens incrémentent uniquement révision générale et versions concernées. Étape inchangée sélectionnée ne doit pas déclencher de commande inutile.
+- Toutes commandes partagent propriétaire/vérification des relations, verrou parent et reçu idempotent/empreinte. Préserver les reçus historiques immuables et ne pas appliquer un résultat historique plus ancien sur un cache récent.
+- Compatibilité future, sans schéma Tâche anticipé : 3.3/3.4 feront incrémenter workflow_revision pour toutes mutations de tâche sous le même verrou parent. Une ancienne transition sans choix sera refusée lorsqu’une tâche active exige Conserver/Annuler. Choix explicite, nouvelle clé et révision de workflow affichée. Réouverture ne restaure aucune tâche.
+
+
+### Fiabilité de l’édition en place
+
+Relire les correctifs finaux2.5 avant de réutiliser les patrons. Une nouvelle saisie pendant pending conserve sa base observée : reçu confirmé pour champ envoyé, base initiale pour un champ indépendant ; jamais la relecture distante ultérieure comme acceptation implicite d’une modification tierce. Le choix local d’un conflit reste appliqué même si le texte est revenu à sa valeur initiale. Échec d’effacement de brouillon doit rester visible et bloquer un abandon prétendument accompli ; busy de plusieurs éditeurs se compose sans qu’un finally de l’un réactive les contrôles de l’autre.
+
+Le blur d’un champ modifié envoie ce champ une seule fois, avec sa base/version ; sérialiser les commandes du même champ. Les commandes indépendantes et leurs réponses peuvent arriver dans un ordre différent : préserver toutes générations récentes et empêcher l’écrasement d’un cache récent par un reçu ancien. Le futur kanban doit consommer le même état confirmé/brouillon/file que le panneau, sans second propriétaire d’une saisie du même champ. Préparer cette composition dès3.1, tout en laissant le rendu du kanban à3.2.
 
 ## Spec Change Log
 

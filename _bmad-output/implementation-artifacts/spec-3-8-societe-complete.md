@@ -72,6 +72,21 @@ Jamais : filtre de période, recherche, revenu prévisionnel, paiement/facture, 
 
 ## Implementation Notes
 
+### Recette intégrée finale à exécuter après cette story
+
+Réutiliser un seul manifeste de fixtures pour les 100 contacts, 50 sociétés, 200 opportunités et 1000 échanges de Q6 ; tâches en nombre documenté. Préparer avant envoi les UUID/commandes et un oracle indépendant des projections : montants en centimes exacts, priorités triées, maximum d’échanges et IDs attendus par rubrique/page. Couvrir >25 dans une colonne, une société et En retard, >10 tâches historiques, >5 priorités, égalités de dates, montants zéro/absent/grands, et liens facultatifs/historiques indépendants. Les données existantes sont séparées et leur empreinte préservée.
+
+Trois parcours intégrés : (1) Après l’appel, cinq affaires, note de deux phrases/montant/étape/action datée, chronométrage ouverture du formulaire → dernière confirmation et relecture après reload ; (2) Reprise du matin, oracle Accueil 0–5 puis toutes pages Relances, Fait/report/rétablissement/refus/clôture explicite, minuit et DST sans modifier l’horloge système ; (3) Société complète, navigation et brouillon protégé, montant/étape/société A→B→aucune actualisant les deux totaux, correction du dernier échange et distinction avec Notes générales.
+
+Réutiliser les recettes R2 déjà passées par domaine. Ajouter les vérifications intégrées qui traversent des frontières nouvelles : vieille lecture après mutation ne remplace pas le total récent, projection indisponible ne signifie pas zéro, réponse perdue puis retry/génération, expiration/reconnexion, stockage défaillant, clôture concurrente et champs indépendants. Tester focus/online/retour de session avec fiche maintenue ouverte. Un seul acteur coordonne DB/fixtures ; la concurrence est limitée aux scénarios prévus.
+
+Mesures dans le navigateur, sans inclure la latence des appels CLI : vues utiles <2s, séries de confirmations avec durées brutes et répartition par chemin, 19/20 <1s sur la série annoncée ; ne pas prétendre qu’une moyenne globale prouve chaque chemin. Panneau froid ≤50ms / chaud ≤16ms, édition ≤16ms, retour visuel <100ms. Mesurer séparément mutation DOM et première frame ; ne pas ajouter deux RAF artificiellement puis les interpréter comme coût de l’application. Définir précisément froid/chaud, version, matériel, navigateur, réseau et taille réelle du jeu. Les parcours automatisés chronométrent l’exécution automatisée, pas la vitesse de rédaction humaine.
+
+Surfaces Q6 : 1440×900, 2560×1440, 402×874 et tablette portrait/paysage ; captures inspectées, clavier/Tab/Échap/focus, manipulation tactile des actions essentielles et scroll horizontal limité au kanban. Preuves success/failed/non-exécuté distinctes ; aucune mesure absente transformée en réussite. Nettoyage exact par provenance dans l’ordre des dépendances, finaliseurs indépendants, empreinte préexistante inchangée et deuxième nettoyage idempotent. Tout nettoyage incomplet reste explicite avec manifeste conservé.
+
+Ce lot est une recette fonctionnelle et de performance avant BMAD06. Il ne lance ni inventaire final de dette, ni refactorisation pédagogique, ni build/push/déploiement.
+
+
 ## Spec Change Log
 
 ## Review Triage Log

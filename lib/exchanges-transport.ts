@@ -7,3 +7,7 @@ export async function sendExchangeCommand(command:ExchangeCommand):Promise<Excha
  try {const response=await fetch('/api/exchanges/command',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(command),signal:AbortSignal.timeout(15000)});return exchangeResultSchema.parse(await response.json());}
  catch{return {status:'unavailable',message:'Confirmation non reçue. Réessayez la même commande ; votre saisie est conservée.'};}
 }
+export async function readExchange(id:string):Promise<ExchangeResult>{
+ try{const response=await fetch(`/api/exchanges?id=${encodeURIComponent(id)}`,{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(15000)});return exchangeResultSchema.parse(await response.json());}
+ catch{return {status:'unavailable',message:'Échange indisponible. Votre correction est conservée.'};}
+}

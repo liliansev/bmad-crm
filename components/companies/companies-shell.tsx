@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { type ExchangeEditorHandle } from "@/components/exchanges/exchange-editor";
 import { ExchangeHistory } from "@/components/exchanges/exchange-history";
 import { CompanyEditor, type EditorHandle } from "@/components/companies/company-editor";
 import { fetchCompany, fetchCompanies, fetchCompanyContacts } from "@/lib/companies-transport";
@@ -44,12 +46,19 @@ export function CompaniesShell({ ownerId, initial, initialPage, initialPanel }: 
   const pendingHref = useRef<string | null>(null);
   const applyNavigation = useRef<((destination: NavigationTarget) => void) | null>(null);
   const editor = useRef<EditorHandle | null>(null);
+  const companyEditor = useRef<EditorHandle | null>(null);
+  const exchangeHistory = useRef<ExchangeEditorHandle | null>(null);
+  const [exchangeClosing,setExchangeClosing]=useState(false),[exchangeBusy,setExchangeBusy]=useState(false);
+  const exchangeDialog=useRef<HTMLDivElement>(null);
+  const cancelExchangeClose=()=>{setExchangeClosing(false);pendingNavigation.current=null;pendingHref.current=null;};
+  editor.current={requestClose:()=>{if(exchangeHistory.current?.busy()||exchangeHistory.current?.dirty())setExchangeClosing(true);else if(companyEditor.current)companyEditor.current.requestClose();else close();}};
   const returnFocus = useRef<HTMLElement | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => {
+    if (exchangeHistory.current?.busy() || exchangeHistory.current?.dirty()) { setExchangeClosing(true); return; }
     panelGeneration.current++;
-    setSelected(null); selectedRef.current = null; setPanel(null); editor.current = null;
+    setSelected(null); selectedRef.current = null; setPanel(null); editor.current = null; companyEditor.current = null; exchangeHistory.current = null;
     writeUrl(null, pageRef.current); setDrafts(draftTargets(ownerId));
     const destination = pendingNavigation.current; pendingNavigation.current = null;
     const href = pendingHref.current; pendingHref.current = null;
@@ -83,6 +92,7 @@ export function CompaniesShell({ ownerId, initial, initialPage, initialPanel }: 
   }, [cache]);
   const open = useCallback((id: string) => {
     returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    companyEditor.current = null; exchangeHistory.current = null;
     selectedRef.current = id; setSelected(id); setEditorTarget(id); setEditorKey((key) => key + 1);
     setPanelError("");
     const seed = cache.get(id); setPanel(seed ? { status: "success", company: seed } : null);
@@ -146,8 +156,9 @@ export function CompaniesShell({ ownerId, initial, initialPage, initialPanel }: 
     </>}
     <Sheet open={Boolean(selected)} onOpenChange={value=>{if(!value){if(editor.current)editor.current.requestClose();else close();}}}><SheetContent ref={sheetRef} showCloseButton={false} className="w-full gap-5 sm:max-w-[440px]" tabIndex={-1} onOpenAutoFocus={event=>{event.preventDefault();sheetRef.current?.focus();}} onCloseAutoFocus={event=>{event.preventDefault();const target=returnFocus.current;if(target?.isConnected&&target!==document.body)target.focus();else addRef.current?.focus();}}><SheetHeader className="border-b px-5 py-5 pr-16"><SheetTitle>{selected==='new'?'Nouvelle société':'Fiche société'}</SheetTitle><SheetDescription>{selected==='new'?'Ajoutez une entreprise à votre carnet.':'Son nom et les contacts qui lui sont rattachés.'}</SheetDescription></SheetHeader><Button className="absolute right-3 top-3 min-h-11 min-w-11" variant="ghost" size="icon" aria-label="Fermer la société" onClick={()=>{if(editor.current)editor.current.requestClose();else close();}}><X /></Button>
       {panelError&&company?<p className="px-5 text-sm text-destructive" role="alert">{panelError}</p>:null}
-      {selected==='new'||company?<div className="flex min-h-0 flex-1 flex-col overflow-y-auto"><CompanyEditor key={editorKey} ownerId={ownerId} target={editorTarget??'new'} company={company} handle={editor} onSaved={saved} onClose={close} onCancelClose={()=>{pendingNavigation.current=null;pendingHref.current=null;}} />{company?<><CompanyContacts key={company.id} companyId={company.id} onNavigate={href=>{pendingHref.current=href;if(editor.current)editor.current.requestClose();else close();}} /><div className="mx-5 mb-5"><ExchangeHistory key={company.id} companyId={company.id} onNavigate={href=>{pendingHref.current=href;if(editor.current)editor.current.requestClose();else close();}} /></div></>:null}</div>:panel?<div className="space-y-4 px-5" role="alert"><p>{panel.status==='success'?'':panel.message}</p><Button className="min-h-11" variant="outline" onClick={()=>{if(selected)refreshPanel(selected).catch(()=>undefined);}}>Réessayer</Button></div>:<div className="space-y-5 px-5" role="status" aria-label="Chargement de la société"><Skeleton className="h-5 w-24"/><Skeleton className="h-11 w-full"/><Skeleton className="h-36 w-full"/></div>}
+      {selected==='new'||company?<div className="flex min-h-0 flex-1 flex-col overflow-y-auto"><CompanyEditor key={editorKey} ownerId={ownerId} target={editorTarget??'new'} company={company} handle={companyEditor} onSaved={saved} onClose={close} onCancelClose={()=>{pendingNavigation.current=null;pendingHref.current=null;}} />{company?<><CompanyContacts key={company.id} companyId={company.id} onNavigate={href=>{pendingHref.current=href;if(editor.current)editor.current.requestClose();else close();}} /><div className="mx-5 mb-5"><ExchangeHistory ownerId={ownerId} handle={exchangeHistory} onBusyChange={setExchangeBusy} key={company.id} companyId={company.id} onNavigate={href=>{pendingHref.current=href;if(editor.current)editor.current.requestClose();else close();}} /></div></>:null}</div>:panel?<div className="space-y-4 px-5" role="alert"><p>{panel.status==='success'?'':panel.message}</p><Button className="min-h-11" variant="outline" onClick={()=>{if(selected)refreshPanel(selected).catch(()=>undefined);}}>Réessayer</Button></div>:<div className="space-y-5 px-5" role="status" aria-label="Chargement de la société"><Skeleton className="h-5 w-24"/><Skeleton className="h-11 w-full"/><Skeleton className="h-36 w-full"/></div>}
     </SheetContent></Sheet>
+    <Dialog open={exchangeClosing} onOpenChange={open=>{if(!open)cancelExchangeClose();}}><DialogContent ref={exchangeDialog} tabIndex={-1} onOpenAutoFocus={event=>{event.preventDefault();exchangeDialog.current?.focus();}} onCloseAutoFocus={event=>{if(exchangeHistory.current?.focusInvalid())event.preventDefault();}}><DialogHeader><DialogTitle>Conserver cette correction ?</DialogTitle><DialogDescription>La correction de l’échange n’est pas encore confirmée.</DialogDescription></DialogHeader><DialogFooter><Button className="min-h-11" disabled={exchangeBusy} onClick={()=>{const save=async()=>{if(exchangeHistory.current?.busy())return;const confirmed=await exchangeHistory.current?.save();if(!confirmed){cancelExchangeClose();return;}setExchangeClosing(false);if(companyEditor.current)companyEditor.current.requestClose();else close();};save().catch(cancelExchangeClose);}}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={exchangeBusy} onClick={()=>{if(exchangeHistory.current?.busy())return;if(exchangeHistory.current?.discard()===false){cancelExchangeClose();return;}setExchangeClosing(false);if(companyEditor.current)companyEditor.current.requestClose();else close();}}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelExchangeClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
   </>;
 }
 function CompanyContacts({companyId,onNavigate}:{companyId:string;onNavigate:(href:string)=>void}) {

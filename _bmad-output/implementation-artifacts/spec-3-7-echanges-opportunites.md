@@ -73,6 +73,13 @@ Jamais : nouveau moteur d’échanges, suppression, déplacement historique impl
 
 ## Implementation Notes
 
+Points de compatibilité identifiés pendant 2.5, à confronter à sa version finale : `exchange_create_command_v1` est désormais une fonction interne dont les droits directs authenticated sont retirés ; `exchange_command` est le passage public commun create/update avec une table de reçus. Étendre ce passage sans permettre d’ancien contournement et sans modifier les reçus confirmés. Les métadonnées/propriétés nouvelles dans les DTO historiques doivent rester optionnelles pour relire un ancien reçu sans le réécrire ou injecter artificiellement un champ dans sa réponse. Toute version nécessaire à une nouvelle correction vient de la relecture actuelle, jamais d’un reçu ancien enrichi a posteriori.
+
+Relire notamment les jointures de `exchange_read`, `exchanges_read` et `contacts_last_interactions` : une jointure Contact devenue facultative ne doit pas faire disparaître un échange opportunité seule des lectures/projections. L’état final complet contact/opportunité doit être validé sous le verrou échange, même pour deux patches de champs indépendants retirant chacun un lien. Le refus du deuxième ne modifie aucun autre champ.
+
+Conserver les correctifs de génération2.5 : une modification faite pendant commande ne doit pas reprendre implicitement la version d’une modification distante intervenue entre commit et relecture. En conflit, le choix mine reste honoré même si la valeur locale a été remise à sa base initiale. Préserver l’abandon/busy, les échecs de stockage et les associations de focus sur les trois panneaux.
+
+
 ## Spec Change Log
 
 ## Review Triage Log

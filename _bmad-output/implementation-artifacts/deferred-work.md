@@ -6,3 +6,7 @@
 - source_spec: `spec-contact-noms-sans-chiffres.md`
   summary: Limite préexistante de rejeu inter-canaux RPC brut vers HTTP v1 pour des noms avec espaces périphériques (low).
   evidence: saveContactAction transmet historiquement parsed.data normalisé en v1 ; un reçu RPC direct contenant des espaces a une empreinte différente après normalisation HTTP. Les commandes v1 de l’application et leurs brouillons exigent de conserver cette normalisation. Évaluer un éventuel besoin inter-canaux avant évolution du protocole ; ce cas n’est pas introduit par la règle des chiffres.
+
+- source_spec: `spec-2-5-correction-echanges.md`
+  summary: Réconcilier le registre des migrations déjà appliquées avant utilisation de l’outillage de déploiement BMAD06.
+  evidence: Les migrations du POC, dont 20260908220000, sont appliquées par helper sans registre CLI distinct ; un replay du renommage échouerait. Vérifier les fonctions présentes et les preuves d’application, puis réparer le registre lors de la préparation livraison, sans rejouer le SQL ni modifier les données.

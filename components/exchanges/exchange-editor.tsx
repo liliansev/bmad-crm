@@ -12,7 +12,7 @@ import { exchangeFieldsSchema,EXCHANGE_CHANNEL_LABELS } from '@/lib/validations/
 import { parisCandidates,resolveParisDate } from '@/lib/exchange-date';
 import { sendExchangeCommand } from '@/lib/exchanges-transport';
 import { acknowledgeExchange,exchangeDirty,freshExchangeDraft,readExchangeDraft,removeExchangeDraft,writeExchangeDraft,type ExchangeDraft } from '@/lib/exchanges-drafts';
-export type ExchangeEditorHandle={dirty:()=>boolean;busy:()=>boolean;focusInvalid:()=>boolean;hasPending:()=>boolean;save:()=>Promise<boolean>;discard:()=>void};
+export type ExchangeEditorHandle={dirty:()=>boolean;busy:()=>boolean;focusInvalid:()=>boolean;hasPending:()=>boolean;save:()=>Promise<boolean>;discard:()=>boolean|void};
 export function ExchangeEditor({ownerId,contactId,handle,onBusyChange}:{ownerId:string;contactId:string;handle:React.RefObject<ExchangeEditorHandle|null>;onBusyChange:(busy:boolean)=>void}){
  const [draft,setDraft]=useState<ExchangeDraft|null>(null),ref=useRef<ExchangeDraft|null>(null),active=useRef(true),flight=useRef(false);
  const [open,setOpen]=useState(false),[closing,setClosing]=useState(false),[saving,setSaving]=useState(false),[message,setMessage]=useState(''),[errors,setErrors]=useState<Record<string,string>>({}),[storageError,setStorageError]=useState(false);

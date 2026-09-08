@@ -20,15 +20,18 @@ type Props = { ownerId: string; target: string; contact: Contact | null; handle:
 export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClose, onCancelClose }: Props) {
   const pendingExchangeHref = useRef<string | null>(null);
   const clearNavigation = () => { pendingExchangeHref.current = null; onCancelClose(); };
-  const finishClose = () => { if (inFlight.current || exchangeEditor.current?.busy()) return; const href = pendingExchangeHref.current; pendingExchangeHref.current = null; onClose(); if (href) window.location.assign(href); };
+  const finishClose = () => { if (inFlight.current || (exchangeEditor.current?.busy() || exchangeHistory.current?.busy())) return; const href = pendingExchangeHref.current; pendingExchangeHref.current = null; onClose(); if (href) window.location.assign(href); };
   const exchangeEditor = useRef<ExchangeEditorHandle | null>(null);
+  const exchangeHistory = useRef<ExchangeEditorHandle | null>(null);
   const relationEditor = useRef<CompanyEditorHandle | null>(null);
   const [draft, setDraft] = useState(() => freshDraft(target, contact));
   const draftRef = useRef(draft);
   const [recoverable, setRecoverable] = useState<ContactDraft | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [exchangeSaving, setExchangeSaving] = useState(false);
+  const [createExchangeSaving, setCreateExchangeSaving] = useState(false);
+  const [updateExchangeSaving, setUpdateExchangeSaving] = useState(false);
+  const exchangeSaving = createExchangeSaving || updateExchangeSaving;
   const inFlight = useRef(false);
   const active = useRef(true);
   const [message, setMessage] = useState("");
@@ -87,7 +90,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     }, 350);
     return () => { current = false; clearTimeout(timer); };
   }, [draft.values.email, draft.base?.id, draft.base?.revision, contact?.revision, duplicatePage, duplicateRetry, recoverable, recoveryChecked]);
-  const requestClose = () => { if (isDirty(draftRef.current) || recoverable || relationEditor.current?.dirty() || exchangeEditor.current?.dirty()) setClosing(true); else finishClose(); };
+  const requestClose = () => { if (isDirty(draftRef.current) || recoverable || relationEditor.current?.dirty() || (exchangeEditor.current?.dirty() || exchangeHistory.current?.dirty())) setClosing(true); else finishClose(); };
   handle.current = { requestClose };
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => { if (isDirty(draftRef.current)) event.preventDefault(); };
@@ -99,7 +102,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     setMessage("");
   };
   const save = async (closeAfter = false) => {
-    if (inFlight.current || exchangeEditor.current?.busy() || recoverable || !recoveryChecked || conflict) return;
+    if (inFlight.current || (exchangeEditor.current?.busy() || exchangeHistory.current?.busy()) || recoverable || !recoveryChecked || conflict) return;
     let exchangeConfirmed = false;
     let relationConfirmed = false;
     const validateCurrent = () => {
@@ -126,6 +129,12 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
       if (!confirmed) { setClosing(false); clearNavigation(); return; }
       exchangeConfirmed = true;
     }
+    if (closeAfter && exchangeHistory.current?.dirty()) {
+      if (!exchangeHistory.current.hasPending() && !validateCurrent()) return;
+      const confirmed = await exchangeHistory.current.save();
+      if (!confirmed) { setClosing(false); clearNavigation(); return; }
+      exchangeConfirmed = true;
+    }
     // Exact pending contact retries run first. A pending relation can also be
     // confirmed unchanged, but a fresh relation requires valid contact fields.
     if (!draftRef.current.pending) {
@@ -144,7 +153,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     }
     const current = draftRef.current;
     const closeIfClean = () => {
-      if (!isDirty(draftRef.current) && !relationEditor.current?.dirty() && !exchangeEditor.current?.dirty()) finishClose();
+      if (!isDirty(draftRef.current) && !relationEditor.current?.dirty() && !(exchangeEditor.current?.dirty() || exchangeHistory.current?.dirty())) finishClose();
       else { setClosing(false); clearNavigation(); }
     };
     if (!isDirty(current)) { if (closeAfter) closeIfClean(); return; }
@@ -171,7 +180,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
       update(next);
       onSaved(result.contact);
       setMessage(isDirty(next) ? "Enregistrement confirmé. Votre nouvelle saisie reste à enregistrer." : "Contact enregistré.");
-      if (closeAfter && !isDirty(next) && !relationEditor.current?.dirty() && !exchangeEditor.current?.dirty()) finishClose(); else { setClosing(false); clearNavigation(); }
+      if (closeAfter && !isDirty(next) && !relationEditor.current?.dirty() && !(exchangeEditor.current?.dirty() || exchangeHistory.current?.dirty())) finishClose(); else { setClosing(false); clearNavigation(); }
     } else if (result.status === "unauthenticated" || result.status === "forbidden") {
       clearNavigation();
       window.dispatchEvent(new Event("crm-session-denied"));
@@ -225,7 +234,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
         })}
       </fieldset>
       {contact ? <ContactCompanyEditor ownerId={ownerId} contactId={contact.id} handle={relationEditor} /> : null}
-      {contact ? <><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setExchangeSaving} /><ExchangeHistory contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
+      {contact ? <><ExchangeEditor ownerId={ownerId} contactId={contact.id} handle={exchangeEditor} onBusyChange={setCreateExchangeSaving} /><ExchangeHistory ownerId={ownerId} handle={exchangeHistory} onBusyChange={setUpdateExchangeSaving} contactId={contact.id} onNavigate={href => { pendingExchangeHref.current = href; requestClose(); }} /></> : null}
       <p id="contact-help" className="text-xs text-muted-foreground">Un prénom ou un nom suffit. Enregistrez pour confirmer vos changements.</p>
       {storageError ? <p role="alert" className="text-sm text-destructive">Le stockage de cet onglet est indisponible. Gardez cette page ouverte jusqu’à confirmation.</p> : null}
       {message ? <p role="status" aria-live="polite" className="text-sm" data-contact-message>{message}</p> : null}
@@ -235,7 +244,7 @@ export function ContactEditor({ ownerId, target, contact, handle, onSaved, onClo
     <Dialog open={closing} onOpenChange={(open) => { if (open) setClosing(true); else cancelClose(); }}><DialogContent ref={closeDialogRef} tabIndex={-1} showCloseButton={false} onCloseAutoFocus={(event) => {
       const field = invalidFocusAfterClose.current;
       if (field) { event.preventDefault(); invalidFocusAfterClose.current = null; focusField(field); }
-      else if (exchangeEditor.current?.focusInvalid()) event.preventDefault();
-    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || exchangeSaving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => { setClosing(false); clearNavigation(); setMessage("Enregistrement indisponible."); }); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving || exchangeSaving} onClick={() => { if (inFlight.current || exchangeEditor.current?.busy()) return; exchangeEditor.current?.discard(); relationEditor.current?.discard(); removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); finishClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
+      else if (exchangeEditor.current?.focusInvalid() || exchangeHistory.current?.focusInvalid()) event.preventDefault();
+    }} onOpenAutoFocus={(event) => { event.preventDefault(); closeDialogRef.current?.focus(); }}><DialogHeader><DialogTitle>Conserver votre saisie ?</DialogTitle><DialogDescription>Des changements ne sont pas encore confirmés.</DialogDescription></DialogHeader><DialogFooter className="sm:flex-wrap"><Button className="min-h-11" disabled={saving || exchangeSaving || Boolean(recoverable) || Boolean(conflict)} onClick={() => { save(true).catch(() => { setClosing(false); clearNavigation(); setMessage("Enregistrement indisponible."); }); }}>Enregistrer</Button><Button className="min-h-11" variant="outline" disabled={saving || exchangeSaving} onClick={() => { if (inFlight.current || (exchangeEditor.current?.busy() || exchangeHistory.current?.busy())) return; if (exchangeHistory.current?.discard() === false) { setClosing(false); clearNavigation(); return; } exchangeEditor.current?.discard(); relationEditor.current?.discard(); removeDraft(ownerId, draftRef.current.target); if (recoverable) removeDraft(ownerId, recoverable.target); finishClose(); }}>Abandonner</Button><Button className="min-h-11" variant="ghost" onClick={cancelClose}>Continuer la saisie</Button></DialogFooter></DialogContent></Dialog>
   </>;
 }
